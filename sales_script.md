@@ -90,7 +90,25 @@ Em de xuat minh dat lich 1-1 hom nay, em chot nhanh giup anh/chi 3 thu: chuong t
 
 ---
 
-## 4) Cau huong khach dien form khi chua san sang mua ngay
+## 4) Rule recommend nhanh theo muc tieu + nganh + ngan sach
+
+Neu khach noi ro ca 3 y sau:
+- Muc tieu: thang tien
+- Huong hoc: quan tri kinh doanh
+- Co nhac den ngan sach
+
+Chatbot phai recommend ngay chuong trinh cu the, khong hoi lai chung chung.
+
+Mau tra loi:
+
+"Voi muc tieu thang tien theo huong quan tri kinh doanh, minh di theo MBA la dung nhat.  
+Neu ngan sach quanh 185 trieu, em de xuat MBA LJMU (~185tr).  
+Neu ngan sach gan 200 trieu va uu tien bang My + AACSB, em de xuat MBA GGU (~200tr).  
+Anh/chi nghieng ve phuong an nao de em chot tiep lo trinh nop ho so cho nhanh?"
+
+---
+
+## 5) Cau huong khach dien form khi chua san sang mua ngay
 
 Hoan toan ok anh/chi, minh cu tim hieu ky cho chac.  
 Anh/chi de lai form giup em, em gui bo thong tin tom tat dung nhu cau cua minh (chuong trinh, hoc phi sau hoc bong, yeu cau dau vao, va timeline nop ho so).  

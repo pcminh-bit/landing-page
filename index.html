@@ -288,6 +288,17 @@
 
             const buyingSignals = ["muon hoc", "dang ky", "chot", "mua", "quan tam", "giu suat", "tu van 1-1", "apply"];
             const notReadySignals = ["de suy nghi", "chua san sang", "tim hieu them", "de sau", "xem da"];
+            const intentRules = {
+                career: ["thang tien", "thang chuc", "len quan ly", "phat trien su nghiep", "quan ly cap cao"],
+                business: ["quan tri kinh doanh", "mba", "kinh doanh", "business"],
+                budget: ["ngan sach", "chi phi", "hoc phi", "tai chinh", "bao nhieu tien"],
+                time: ["thoi gian", "bao lau", "12-21", "24-27", "lich hoc", "ban", "it thoi gian"],
+                degree: ["bang cap", "bang", "van bang", "gia tri quoc te", "kiem dinh", "wes", "aacsb", "acbsp", "hlc"],
+                payment: ["tra gop", "dong theo dot", "pay as you go", "emi", "thanh toan"],
+                process: ["quy trinh", "offer letter", "block seat", "nhap hoc"],
+                docs: ["ho so", "giay to", "sop", "cv", "cccd", "ho chieu"],
+                campus: ["immersion", "campus", "san francisco", "wisconsin", "liverpool"]
+            };
             const suggestionMap = {
                 default: [
                     "Học phí là bao nhiêu?",
@@ -352,6 +363,36 @@
                     .normalize('NFD')
                     .replace(/[\u0300-\u036f]/g, '')
                     .replace(/đ/g, 'd');
+            }
+
+            function extractBudgetInMillions(normalizedText) {
+                const withTr = normalizedText.match(/(\d+(?:[.,]\d+)?)\s*tr/);
+                if (withTr) return Number(withTr[1].replace(',', '.'));
+
+                const withTy = normalizedText.match(/(\d+(?:[.,]\d+)?)\s*ty/);
+                if (withTy) return Number(withTy[1].replace(',', '.')) * 1000;
+
+                const plain = normalizedText.match(/ngan sach[^0-9]*(\d{2,4})/);
+                if (plain) return Number(plain[1]);
+
+                return null;
+            }
+
+            function includesAny(text, keywords) {
+                return keywords.some((k) => text.includes(k));
+            }
+
+            function getFaqMatchByScore(q) {
+                let best = null;
+                let bestScore = 0;
+                for (const item of faq) {
+                    const score = item.keys.reduce((acc, key) => acc + (q.includes(key) ? 1 : 0), 0);
+                    if (score > bestScore) {
+                        best = item;
+                        bestScore = score;
+                    }
+                }
+                return bestScore > 0 ? best : null;
             }
 
             function addMessage(text, role, allowHtml) {
@@ -487,6 +528,37 @@
 
             function getAnswer(question) {
                 const q = normalizeText(question);
+                const budget = extractBudgetInMillions(q);
+                const hasCareerGoal = includesAny(q, intentRules.career);
+                const hasBusinessFocus = includesAny(q, intentRules.business);
+                const hasBudgetIntent = includesAny(q, intentRules.budget) || budget !== null;
+                const hasTimeIntent = includesAny(q, intentRules.time);
+                const hasDegreeIntent = includesAny(q, intentRules.degree);
+                const hasPaymentIntent = includesAny(q, intentRules.payment);
+                const hasProcessIntent = includesAny(q, intentRules.process);
+                const hasDocsIntent = includesAny(q, intentRules.docs);
+                const hasCampusIntent = includesAny(q, intentRules.campus);
+
+                if (hasCareerGoal && hasBusinessFocus && hasBudgetIntent) {
+                    const isLJMUFit = budget !== null && budget <= 190;
+                    return {
+                        text: isLJMUFit
+                            ? "Với mục tiêu thăng tiến theo hướng quản trị kinh doanh, mình đi MBA là đúng nhất. Với ngân sách khoảng " + Math.round(budget) + " triệu, em đề xuất MBA LJMU (~185tr). Nếu anh/chị muốn phương án bằng Mỹ + AACSB thì có MBA GGU (~200tr). Anh/chị nghiêng về phương án nào để em chốt tiếp lộ trình hồ sơ?"
+                            : "Với mục tiêu thăng tiến theo hướng quản trị kinh doanh, mình đi MBA là đúng nhất. Nếu anh/chị ưu tiên bằng Mỹ + AACSB thì em đề xuất MBA GGU (~200tr). Nếu muốn tối ưu ngân sách hơn, mình có MBA LJMU (~185tr). Anh/chị nghiêng về phương án nào để em chốt tiếp lộ trình hồ sơ?",
+                        showWaitlist: false,
+                        showLeadForm: false,
+                        tag: "buying"
+                    };
+                }
+
+                if (hasCareerGoal && hasBusinessFocus) {
+                    return {
+                        text: "Nếu mục tiêu của anh/chị là thăng tiến theo hướng quản trị kinh doanh, em đề xuất đi thẳng MBA. Nếu ngân sách quanh 185tr mình ưu tiên MBA LJMU, còn khoảng 200tr và ưu tiên bằng Mỹ + AACSB thì MBA GGU rất hợp.",
+                        showWaitlist: false,
+                        showLeadForm: false,
+                        tag: "buying"
+                    };
+                }
 
                 if (buyingSignals.some((k) => q.includes(k))) {
                     return {
@@ -506,7 +578,61 @@
                     };
                 }
 
-                const matched = faq.find((item) => item.keys.some((k) => q.includes(k)));
+                if (hasTimeIntent) {
+                    return {
+                        text: "Về thời gian học: Thạc sĩ thường 12-21 tháng, Tiến sĩ 24-27 tháng, Dual MBA-DBA khoảng 36 tháng. Lịch học rất linh hoạt, không cần học giờ cố định, chỉ cần bám deadline.",
+                        showWaitlist: false,
+                        showLeadForm: false,
+                        tag: "duration"
+                    };
+                }
+
+                if (hasDegreeIntent) {
+                    return {
+                        text: "Về bằng cấp: chương trình có kiểm định quốc tế (AACSB, ACBSP, HLC; GGU có WES). Còn tại Việt Nam, chương trình 100% online hiện chưa được Bộ GD&ĐT công nhận chính thức cho mục đích hành chính nhà nước.",
+                        showWaitlist: false,
+                        showLeadForm: false,
+                        tag: "accreditation"
+                    };
+                }
+
+                if (hasPaymentIntent) {
+                    return {
+                        text: "Mình có thể đóng 1 lần, chia 3 đợt, hoặc Pay As You Go 12 tháng tùy chương trình. Nếu anh/chị chia sẻ mức ngân sách mong muốn, em tính ngay phương án dòng tiền phù hợp.",
+                        showWaitlist: false,
+                        showLeadForm: false,
+                        tag: "payment"
+                    };
+                }
+
+                if (hasProcessIntent) {
+                    return {
+                        text: "Quy trình thường là: nộp hồ sơ -> 4-5 ngày nhận Offer Letter -> đóng Block Seat trong 48h -> upload đủ hồ sơ trong 7 ngày -> hoàn tất học phí và vào học.",
+                        showWaitlist: false,
+                        showLeadForm: false,
+                        tag: "process"
+                    };
+                }
+
+                if (hasDocsIntent) {
+                    return {
+                        text: "Hồ sơ cơ bản gồm bằng + bảng điểm (gốc + dịch Anh), hộ chiếu/CCCD, ảnh passport, SOP tối thiểu 500 chữ và CV mới nhất. SOP lưu ý đạo văn dưới 15%.",
+                        showWaitlist: false,
+                        showLeadForm: false,
+                        tag: "documents"
+                    };
+                }
+
+                if (hasCampusIntent) {
+                    return {
+                        text: "Có Immersion Trip theo dạng tự nguyện: GGU tại San Francisco, Edgewood tại Wisconsin, LJMU tại Liverpool. Đây là phần cộng thêm để mở rộng network quốc tế.",
+                        showWaitlist: false,
+                        showLeadForm: false,
+                        tag: "campus"
+                    };
+                }
+
+                const matched = getFaqMatchByScore(q);
                 if (matched) {
                     return { text: matched.answer, showWaitlist: false, showLeadForm: false, tag: matched.tag };
                 }
