@@ -169,7 +169,7 @@
         </section>
 
         <!-- Consultation Form Section -->
-        <section class="consultation-section container">
+        <section id="waitlist-form" class="consultation-section container">
             <div class="consultation-box">
                 <p class="consultation-kicker">Nhận tư vấn học bổng tốt nhất ngay hôm nay</p>
                 <h2>Bắt đầu hành trình thăng tiến ngay hôm nay</h2>
@@ -185,6 +185,373 @@
             <p>&copy; 2026 Trần Tuấn Anh. Bản quyền được bảo hộ.</p>
         </div>
     </footer>
+
+    <button class="chatbot-toggle" id="chatbotToggle" aria-label="Mở chatbot">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+    </button>
+
+    <div class="chatbot-window" id="chatbotWindow" aria-live="polite">
+        <div class="chatbot-header">
+            <div class="chatbot-title">Trợ lý tư vấn</div>
+            <div class="chatbot-tools">
+                <button class="chatbot-tool-btn" id="chatbotExportLog" type="button">Log</button>
+                <button class="chatbot-close" id="chatbotClose" aria-label="Đóng chatbot">&times;</button>
+            </div>
+        </div>
+        <div class="chatbot-body" id="chatbotBody"></div>
+        <div class="chatbot-actions" id="chatbotActions"></div>
+        <form class="chatbot-form" id="chatbotForm">
+            <input class="chatbot-input" id="chatbotInput" type="text" placeholder="Nhập câu hỏi của anh/chị..." />
+            <button class="chatbot-send" type="submit">Gửi</button>
+        </form>
+    </div>
+
+    <script>
+        (function () {
+            const toggle = document.getElementById('chatbotToggle');
+            const closeBtn = document.getElementById('chatbotClose');
+            const exportLogBtn = document.getElementById('chatbotExportLog');
+            const win = document.getElementById('chatbotWindow');
+            const body = document.getElementById('chatbotBody');
+            const form = document.getElementById('chatbotForm');
+            const input = document.getElementById('chatbotInput');
+            const actions = document.getElementById('chatbotActions');
+
+            const welcome = "Chào anh/chị, em là trợ lý tư vấn chương trình Thạc sĩ/Tiến sĩ quốc tế của upGrad.\nNếu anh/chị đang cần một lộ trình vừa đi làm vừa học, em giúp mình chọn nhanh trong 2-3 phút nhé.";
+            const waitlistHtml = '<a class="chatbot-waitlist-btn" href="#waitlist-form">Đi đến form danh sách chờ</a>';
+            const leadFormHtml =
+                '<form class="chatbot-lead-form" id="chatbotLeadForm">' +
+                '<input class="chatbot-lead-input" name="name" placeholder="Họ và tên" required />' +
+                '<input class="chatbot-lead-input" name="phone" placeholder="Số điện thoại" required />' +
+                '<button class="chatbot-lead-submit" type="submit">Gửi thông tin tư vấn</button>' +
+                '</form>';
+            const SESSION_KEY = 'upgrad_chatbot_session_v1';
+            const LOG_KEY = 'upgrad_chatbot_question_log_v1';
+            const LEAD_QUEUE_KEY = 'upgrad_chatbot_lead_queue_v1';
+            const HUBSPOT_PORTAL_ID = '20918102';
+            const HUBSPOT_FORM_ID = 'b45e9b5a-7e6d-48fe-babf-2d2fbdb97d7f';
+
+            const faq = [
+                {
+                    keys: ["hoc phi", "bao nhieu tien", "gia bao nhieu", "chi phi"],
+                    tag: "tuition",
+                    answer: "Tùy chương trình: MBA GGU ~200tr, MBA Edgewood ~185tr, MBA LJMU ~185tr, DBA GGU ~375tr, DBA Edgewood ~285tr, Dual MBA-DBA GGU ~442tr (mức sau học bổng)."
+                },
+                {
+                    keys: ["tra gop", "dong hoc phi", "thanh toan", "emi", "pay as you go"],
+                    tag: "payment",
+                    answer: "Có 3 cách đóng: 1 lần (có thể xin thêm ưu đãi), chia 3 đợt cách 3 tháng, hoặc Pay As You Go chia 12 tháng. Có chấp nhận thẻ tín dụng quốc tế."
+                },
+                {
+                    keys: ["hoc nhu the nao", "lich hoc", "co dinh gio", "bao nhieu gio", "online"],
+                    tag: "study_mode",
+                    answer: "Không học giờ cố định. Mô hình 70% tự học + 30% live session, linh hoạt theo múi giờ học viên. Thường dành 12-15 giờ/tuần là theo kịp."
+                },
+                {
+                    keys: ["cong nhan", "bo gddt", "viet nam", "hanh chinh nha nuoc"],
+                    tag: "recognition",
+                    answer: "Hiện các chương trình 100% online chưa được Bộ GD&ĐT công nhận chính thức. Nếu mục tiêu là hành chính nhà nước, anh/chị nên cân nhắc kỹ. Nếu mục tiêu là doanh nghiệp tư nhân/quốc tế, giá trị thực tế vẫn rất cao."
+                },
+                {
+                    keys: ["gia tri quoc te", "kiem dinh", "aacsb", "wes", "acbsp", "hlc"],
+                    tag: "accreditation",
+                    answer: "Bằng cấp có giá trị quốc tế và được kiểm định. GGU có AACSB và được WES công nhận; Edgewood có ACBSP + HLC."
+                },
+                {
+                    keys: ["yeu cau dau vao", "dau vao", "gpa", "ielts", "toefl"],
+                    tag: "admission",
+                    answer: "Thạc sĩ: cử nhân, GPA tối thiểu khoảng 5.0-5.5/10. Tiến sĩ: thạc sĩ hoặc cử nhân + 5 năm kinh nghiệm. GGU/Edgewood thường không bắt buộc IELTS/TOEFL (trừ chương trình có yêu cầu riêng)."
+                },
+                {
+                    keys: ["ho so", "sop", "giay to", "cv", "cccd", "ho chieu"],
+                    tag: "documents",
+                    answer: "Hồ sơ cơ bản gồm bằng + bảng điểm (gốc + dịch Anh), hộ chiếu/CCCD, ảnh passport, SOP tối thiểu 500 chữ, CV cập nhật. SOP lưu ý đạo văn dưới 15%."
+                },
+                {
+                    keys: ["quy trinh", "offer letter", "bao lau", "block seat"],
+                    tag: "process",
+                    answer: "Thường 4-5 ngày có Offer Letter sau khi gửi hồ sơ. Sau đó đóng Block Seat trong 48h, upload đầy đủ hồ sơ trong 7 ngày, hoàn tất học phí để vào học."
+                },
+                {
+                    keys: ["thoi gian hoc", "bao lau hoc", "12-21", "24-27", "36 thang"],
+                    tag: "duration",
+                    answer: "Thạc sĩ thường 12-21 tháng, Tiến sĩ 24-27 tháng, lộ trình Dual MBA-DBA khoảng 36 tháng."
+                },
+                {
+                    keys: ["immersion", "di campus", "san francisco", "wisconsin", "liverpool"],
+                    tag: "campus",
+                    answer: "Có Immersion Trip theo dạng tự nguyện: GGU (San Francisco), Edgewood (Wisconsin), LJMU (Liverpool)."
+                }
+            ];
+
+            const buyingSignals = ["muon hoc", "dang ky", "chot", "mua", "quan tam", "giu suat", "tu van 1-1", "apply"];
+            const notReadySignals = ["de suy nghi", "chua san sang", "tim hieu them", "de sau", "xem da"];
+            const suggestionMap = {
+                default: [
+                    "Học phí là bao nhiêu?",
+                    "Có được trả góp không?",
+                    "Bằng có giá trị quốc tế không?"
+                ],
+                tuition: [
+                    "Có được trả góp không?",
+                    "Quy trình đăng ký mất bao lâu?",
+                    "Tôi muốn đặt lịch tư vấn 1-1"
+                ],
+                payment: [
+                    "Học phí là bao nhiêu?",
+                    "Quy trình đăng ký mất bao lâu?",
+                    "Tôi quan tâm và muốn giữ suất"
+                ],
+                recognition: [
+                    "Bằng có giá trị quốc tế không?",
+                    "Học như thế nào? Có phải học giờ cố định không?",
+                    "Tôi cần thêm thời gian để suy nghĩ"
+                ],
+                admission: [
+                    "Hồ sơ cần những gì?",
+                    "Quy trình đăng ký mất bao lâu?",
+                    "Tôi muốn đặt lịch tư vấn 1-1"
+                ],
+                documents: [
+                    "Yêu cầu đầu vào là gì?",
+                    "Quy trình đăng ký mất bao lâu?",
+                    "Tôi quan tâm và muốn giữ suất"
+                ],
+                process: [
+                    "Hồ sơ cần những gì?",
+                    "Có được trả góp không?",
+                    "Tôi quan tâm và muốn giữ suất"
+                ],
+                duration: [
+                    "Học như thế nào? Có phải học giờ cố định không?",
+                    "Có được đi campus không?",
+                    "Tôi cần thêm thời gian để suy nghĩ"
+                ],
+                campus: [
+                    "Thời gian học bao lâu?",
+                    "Học phí là bao nhiêu?",
+                    "Tôi quan tâm và muốn giữ suất"
+                ],
+                buying: [
+                    "Tôi muốn đặt lịch tư vấn 1-1",
+                    "Quy trình đăng ký mất bao lâu?",
+                    "Hồ sơ cần những gì?"
+                ],
+                not_ready: [
+                    "Học phí là bao nhiêu?",
+                    "Bằng có giá trị quốc tế không?",
+                    "Yêu cầu đầu vào là gì?"
+                ]
+            };
+
+            function normalizeText(value) {
+                return value
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/đ/g, 'd');
+            }
+
+            function addMessage(text, role, allowHtml) {
+                const msg = document.createElement('div');
+                msg.className = `chatbot-message ${role}`;
+                if (allowHtml) {
+                    msg.innerHTML = text;
+                } else {
+                    msg.textContent = text;
+                }
+                body.appendChild(msg);
+                body.scrollTop = body.scrollHeight;
+                persistHistory();
+                bindLeadForm();
+            }
+
+            function renderSuggestions(questions) {
+                actions.innerHTML = '';
+                questions.forEach((question) => {
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = 'chatbot-chip';
+                    chip.dataset.question = question;
+                    chip.textContent = question;
+                    actions.appendChild(chip);
+                });
+            }
+
+            function persistHistory() {
+                localStorage.setItem(SESSION_KEY, body.innerHTML);
+            }
+
+            function restoreHistory() {
+                const cached = localStorage.getItem(SESSION_KEY);
+                if (!cached) return false;
+                body.innerHTML = cached;
+                body.dataset.initiated = 'true';
+                bindLeadForm();
+                body.scrollTop = body.scrollHeight;
+                return true;
+            }
+
+            function appendQuestionLog(question, matchedTag) {
+                const logs = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+                logs.push({
+                    question: question,
+                    tag: matchedTag || 'default',
+                    timestamp: new Date().toISOString()
+                });
+                localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+            }
+
+            function exportQuestionLogs() {
+                const logs = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+                const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'chatbot-question-log.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            async function submitLeadToHubspot(name, phone, note) {
+                const endpoint = `https://api.hsforms.com/submissions/v3/integration/submit/${HUBSPOT_PORTAL_ID}/${HUBSPOT_FORM_ID}`;
+                const payload = {
+                    fields: [
+                        { name: 'firstname', value: name },
+                        { name: 'phone', value: phone }
+                    ],
+                    context: {
+                        pageUri: window.location.href,
+                        pageName: document.title
+                    },
+                    legalConsentOptions: {
+                        consent: {
+                            consentToProcess: true,
+                            text: 'Đồng ý để được tư vấn',
+                            communications: []
+                        }
+                    }
+                };
+                if (note) {
+                    payload.fields.push({ name: 'message', value: note });
+                }
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error('HubSpot submission failed');
+            }
+
+            function queueLead(data) {
+                const queue = JSON.parse(localStorage.getItem(LEAD_QUEUE_KEY) || '[]');
+                queue.push({ ...data, queuedAt: new Date().toISOString() });
+                localStorage.setItem(LEAD_QUEUE_KEY, JSON.stringify(queue));
+            }
+
+            function bindLeadForm() {
+                const leadForm = document.getElementById('chatbotLeadForm');
+                if (!leadForm || leadForm.dataset.bound === 'true') return;
+                leadForm.dataset.bound = 'true';
+                leadForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(leadForm);
+                    const name = (formData.get('name') || '').toString().trim();
+                    const phone = (formData.get('phone') || '').toString().trim();
+                    if (!name || !phone) return;
+                    addMessage(`Em là ${name}, SĐT ${phone}.`, 'user');
+                    try {
+                        await submitLeadToHubspot(name, phone, 'Lead từ chatbot');
+                        addMessage('Tuyệt vời, em đã gửi thông tin của anh/chị lên hệ thống tư vấn. Team sẽ liên hệ sớm nhé.', 'bot');
+                    } catch (error) {
+                        queueLead({ name, phone, note: 'Lead từ chatbot (fallback queue)' });
+                        addMessage('Em đã lưu thông tin vào hàng đợi an toàn. Team vẫn sẽ liên hệ anh/chị sớm. Anh/chị có thể bấm form bên dưới để xác nhận thêm.', 'bot');
+                        addMessage(waitlistHtml, 'bot', true);
+                    }
+                    renderSuggestions(suggestionMap.buying);
+                });
+            }
+
+            function openChat() {
+                win.classList.add('is-open');
+                if (!body.dataset.initiated) {
+                    if (!restoreHistory()) {
+                        addMessage(welcome, 'bot');
+                    }
+                    renderSuggestions(suggestionMap.default);
+                    body.dataset.initiated = 'true';
+                }
+            }
+
+            function getAnswer(question) {
+                const q = normalizeText(question);
+
+                if (buyingSignals.some((k) => q.includes(k))) {
+                    return {
+                        text: "Anh/chị đang rất hợp với lộ trình này. Nếu mình chốt hồ sơ trong đợt hiện tại, khả năng giữ học bổng sẽ tốt hơn. Mình đặt lịch 1-1 để chốt nhanh chương trình + tổng chi phí thực trả nhé.",
+                        showWaitlist: true,
+                        showLeadForm: true,
+                        tag: "buying"
+                    };
+                }
+
+                if (notReadySignals.some((k) => q.includes(k))) {
+                    return {
+                        text: "Hoàn toàn ok anh/chị. Mình cứ tìm hiểu kỹ cho chắc. Anh/chị để lại form, em gửi bộ tóm tắt đúng nhu cầu của mình để tham khảo khi sẵn sàng.",
+                        showWaitlist: true,
+                        showLeadForm: false,
+                        tag: "not_ready"
+                    };
+                }
+
+                const matched = faq.find((item) => item.keys.some((k) => q.includes(k)));
+                if (matched) {
+                    return { text: matched.answer, showWaitlist: false, showLeadForm: false, tag: matched.tag };
+                }
+
+                return {
+                    text: "Em đã ghi nhận câu hỏi của anh/chị. Nếu anh/chị cho em biết rõ hơn về mục tiêu (thăng tiến, ngành học, ngân sách), em sẽ đề xuất lộ trình phù hợp nhất ngay.",
+                    showWaitlist: false,
+                    showLeadForm: false,
+                    tag: "default"
+                };
+            }
+
+            function handleQuestion(text) {
+                if (!text.trim()) return;
+                addMessage(text.trim(), 'user');
+                const result = getAnswer(text);
+                appendQuestionLog(text.trim(), result.tag);
+                addMessage(result.text, 'bot');
+                if (result.showWaitlist) {
+                    addMessage(waitlistHtml, 'bot', true);
+                }
+                if (result.showLeadForm) {
+                    addMessage(leadFormHtml, 'bot', true);
+                }
+                renderSuggestions(suggestionMap[result.tag] || suggestionMap.default);
+            }
+
+            toggle.addEventListener('click', openChat);
+            closeBtn.addEventListener('click', () => win.classList.remove('is-open'));
+            exportLogBtn.addEventListener('click', exportQuestionLogs);
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                handleQuestion(input.value);
+                input.value = '';
+            });
+
+            actions.addEventListener('click', (e) => {
+                const btn = e.target.closest('.chatbot-chip');
+                if (!btn) return;
+                openChat();
+                handleQuestion(btn.dataset.question || '');
+            });
+        })();
+    </script>
 </body>
 </html>
   

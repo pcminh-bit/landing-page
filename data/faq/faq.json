@@ -1,0 +1,56 @@
+﻿{
+  "last_updated": "2026-05-08",
+  "title": "FAQ - Cau hoi thuong gap",
+  "faq": [
+    {
+      "id": "faq-001",
+      "question": "Hoc phi la bao nhieu?",
+      "answer": "Tuy chuong trinh: MBA GGU ~200tr VND (hoc bong 80%), MBA Edgewood ~185tr VND (hoc bong 50%), MBA LJMU ~185tr VND (hoc bong 95%), DBA GGU ~375tr VND (hoc bong 80%), DBA Edgewood ~285tr VND (hoc bong 50%), Dual MBA-DBA GGU ~442tr VND."
+    },
+    {
+      "id": "faq-002",
+      "question": "Co duoc tra gop khong?",
+      "answer": "Co. Co 3 phuong an: PA1 thanh toan 1 lan (co the tiet kiem them 15tr), PA2 chia 3 dot moi dot cach nhau 3 thang, Pay As You Go chia deu 12 thang. Chap nhan the tin dung quoc te."
+    },
+    {
+      "id": "faq-003",
+      "question": "Hoc nhu the nao? Co phai hoc co dinh gio khong?",
+      "answer": "Khong hoc co dinh gio. 70% tu hoc (video, tai lieu), 30% live session co tuong tac. Linh hoat theo mui gio hoc vien, chi can hoan thanh trong deadline cua truong. Nen danh khoang 12-15 gio/tuan (~2 gio/ngay)."
+    },
+    {
+      "id": "faq-004",
+      "question": "Bang co duoc cong nhan tai Viet Nam khong?",
+      "answer": "Hien chua duoc Bo GD&DT cong nhan chinh thuc do hinh thuc hoc 100% online tu nuoc ngoai. Phu hop cho moi truong doanh nghiep tu nhan, cong ty quoc te va muc tieu thang tien su nghiep. Khong phu hop neu muc tieu chinh la hanh chinh nha nuoc. upGrad dang hoan thien thu tuc de som duoc cong nhan."
+    },
+    {
+      "id": "faq-005",
+      "question": "Bang co gia tri quoc te khong?",
+      "answer": "Co. Chuong trinh duoc kiem dinh boi AACSB (GGU), ACBSP + HLC (Edgewood) theo chuan My. Bang GGU duoc WES cong nhan va quy doi tuong duong tai Hoa Ky."
+    },
+    {
+      "id": "faq-006",
+      "question": "Yeu cau dau vao la gi?",
+      "answer": "Bac Thac si: can bang Cu nhan, GPA toi thieu 5.0-5.5/10. Bac Tien si: can bang Thac si, hoac Cu nhan + 5 nam kinh nghiem. GGU va Edgewood thuong khong yeu cau IELTS/TOEFL (tru cac chuong trinh co yeu cau rieng nhu Northeastern/LJMU)."
+    },
+    {
+      "id": "faq-007",
+      "question": "Ho so can nhung gi?",
+      "answer": "Ho so co ban gom: bang + bang diem (ban goc + ban dich tieng Anh), ho chieu hoac CCCD, anh passport, thu SOP toi thieu 500 chu, CV cap nhat. Luu y SOP: dao van duoi 15%, khong dung AI."
+    },
+    {
+      "id": "faq-008",
+      "question": "Quy trinh dang ky mat bao lau?",
+      "answer": "Tu luc gui ho so den khi nhan Offer Letter thuong 4-5 ngay lam viec. Sau Offer Letter: dong Block Seat (12-23tr) trong 48h, upload du ho so trong 7 ngay, hoan tat hoc phi de bat dau hoc."
+    },
+    {
+      "id": "faq-009",
+      "question": "Thoi gian hoc bao lau?",
+      "answer": "Thac si thuong 12-21 thang tuy chuong trinh. Tien si thuong 24-27 thang. Lo trinh Dual MBA-DBA la 36 thang."
+    },
+    {
+      "id": "faq-010",
+      "question": "Co duoc di campus khong?",
+      "answer": "Co. Cac chuong trinh co Immersion Trip (tu nguyen): GGU tai San Francisco, Edgewood tai Wisconsin, LJMU tai Liverpool (Anh)."
+    }
+  ]
+}

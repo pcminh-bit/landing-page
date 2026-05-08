@@ -1,0 +1,387 @@
+{
+  "source": "Bang thong tin chuong trinh do user cung cap",
+  "last_updated": "2026-05-08",
+  "currency_note": "Hoc phi giu nguyen theo thong tin goc (USD/GBP + VND)",
+  "delivery_mode_default": "Linh hoat theo mui gio cua hoc vien. 70% tu hoc (video record, doc tai lieu, bai tap) + 30% live session tuong tac voi giang vien co phu de tieng Anh.",
+  "programs": {
+    "thac_si": [
+      {
+        "id": "ggu-mba",
+        "university": "Golden Gate University",
+        "program_name": "CHUONG TRINH MBA GOLDEN GATE UNIVERSITY",
+        "university_info": [
+          "Truong tai trung tam San Francisco, gan Silicon Valley.",
+          "Dao tao chu trong trai nghiem thuc te va ung dung.",
+          "Thanh vien AACSB.",
+          "Duoc WES cong nhan va chuyen doi chung chi giao duc sang tuong duong tai Hoa Ky."
+        ],
+        "highlights": [
+          "Thiet ke linh hoat cho nguoi di lam qua video record + live session.",
+          "Nhieu case study va du an thuc te.",
+          "Lua chon 1 trong 4 chuyen nganh hoac tu thiet ke chuyen nganh.",
+          "Co hoi tham gia Immersion Trip tai San Francisco.",
+          "Bai tap mo phong tu Harvard Business Publishing Education.",
+          "Co Certifications: Digital Marketing, Product Management, Financial Risk Management, New-Age Leadership."
+        ],
+        "duration": "13 thang",
+        "tuition_original": "$39,240 (1,050,000,000 VND)",
+        "tuition_after_scholarship": "$7,690 (200,000,000 VND)",
+        "scholarship_note": "Hoc bong 80% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "ggu-ma-iop",
+        "university": "Golden Gate University",
+        "program_name": "MASTER OF INDUSTRIAL & ORGANIZATIONAL PSYCHOLOGY (MA IOP) GOLDEN GATE UNIVERSITY",
+        "university_info": [
+          "Truong tai trung tam San Francisco, gan Silicon Valley.",
+          "Dao tao chu trong trai nghiem thuc te va ung dung.",
+          "Thanh vien AACSB.",
+          "Duoc WES cong nhan va chuyen doi chung chi giao duc sang tuong duong tai Hoa Ky."
+        ],
+        "highlights": [
+          "Linh hoat cho nguoi di lam qua video record + live session.",
+          "Lam chu cong cu chan doan va nang cao hieu suat ca nhan, doi nhom, to chuc.",
+          "Xay dung moi truong lam viec nang dong, tang muc do gan ket va giu chan nhan su.",
+          "Ung dung cao: HBR case study, simulation, conflict resolution, leadership project.",
+          "Khong yeu cau background tam ly hoc."
+        ],
+        "duration": "12 thang",
+        "tuition_original": "$35,970 (935,000,000 VND)",
+        "tuition_after_scholarship": "$7,500 (195,000,000 VND)",
+        "scholarship_note": "Hoc bong 80% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "edgewood-mba",
+        "university": "Edgewood University",
+        "program_name": "CHUONG TRINH MBA EDGEWOOD UNIVERSITY",
+        "university_info": [
+          "Truong tai Madison, Wisconsin.",
+          "Noi bat ve giao duc va kinh te, ket hop ly thuyet va thuc tien.",
+          "Ho tro sinh vien quoc te, moi truong da van hoa.",
+          "Kiem dinh ACBSP.",
+          "Dat kiem dinh cao nhat boi HLC."
+        ],
+        "highlights": [
+          "Hoan thanh MBA trong 14 thang.",
+          "Hoc linh hoat tren nen tang Blackboard.",
+          "Ca nhan hoa theo chuyen nganh lua chon.",
+          "Huong dan luan van 1-1 voi co van quoc te va chuyen gia nganh.",
+          "Co hoi Immersion Trip tai campus Wisconsin."
+        ],
+        "duration": "14 thang",
+        "tuition_original": "$15,000 (390,000,000 VND)",
+        "tuition_after_scholarship": "$7,100 (185,000,000 VND)",
+        "scholarship_note": "Hoc bong 50% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "edgewood-med",
+        "university": "Edgewood University",
+        "program_name": "MASTER OF EDUCATION (M.ED) EDGEWOOD UNIVERSITY",
+        "university_info": [
+          "Truong tai Madison, Wisconsin.",
+          "Noi bat ve giao duc va kinh te, ket hop ly thuyet va thuc tien.",
+          "Ho tro sinh vien quoc te, moi truong da van hoa.",
+          "Kiem dinh ACBSP.",
+          "Dat kiem dinh cao nhat boi HLC."
+        ],
+        "highlights": [
+          "Hoan thanh Thac si Giao duc trong 14 thang.",
+          "Hoc linh hoat tren Blackboard cho nguoi di lam.",
+          "Lua chon 5 chuyen nganh duoc quan tam trong giao duc.",
+          "Co hoi Immersion Trip tai campus Wisconsin."
+        ],
+        "duration": "14 thang",
+        "tuition_original": "$19,800 (514,800,000 VND)",
+        "tuition_after_scholarship": "$8,200 (215,000,000 VND)",
+        "scholarship_note": "Hoc bong 60% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "liverpool-imtg-mba",
+        "university": "Liverpool John Moores University",
+        "program_name": "CHUONG TRINH MBA IMTG - LIVERPOOL JOHN MOORES",
+        "partner_info": {
+          "iiitb": [
+            "IIIT Bangalore la vien cong nghe hang dau An Do trong CNTT va Khoa hoc du lieu.",
+            "Toa lac tai Bangalore - thu phu cong nghe cua An Do."
+          ],
+          "ljmu": [
+            "LJMU la truong uy tin tai Anh.",
+            "LJMU duoc cong nhan ve Chat luong Kinh doanh Xuat sac va Thuc hanh Quan ly Nhan su.",
+            "Toa lac tai Liverpool, tao trai nghiem hoc tap nang dong."
+          ]
+        },
+        "highlights": [
+          "Nhan 2 bang: bang du bi tu IIITB + bang Thac si tu LJMU.",
+          "Nhan bang MBA tu truong kinh doanh Anh voi chi phi thap.",
+          "Phat trien chuyen mon voi 6 chuyen nganh san co.",
+          "Co hoi Immersion Trip tai Anh.",
+          "Tro thanh cuu sinh vien cua Liverpool Business School va IMT Ghaziabad."
+        ],
+        "duration": "17-20 thang",
+        "tuition_original": "£30,000 (1,058,000,000 VND)",
+        "tuition_after_scholarship": "$5,200 (185,000,000 VND)",
+        "scholarship_note": "Hoc bong 95% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "northeastern-med",
+        "university": "Northeastern University",
+        "program_name": "MASTER OF EDUCATION (MED) - NORTHEASTERN UNIVERSITY",
+        "university_info": [
+          "So huu 13 campus toan cau, mang luoi 3,350 doi tac tuyen dung tai gan 60 quoc gia.",
+          "Times Higher Education 2025: top 201-250 toan cau.",
+          "U.S. News & World Report: #54 National Universities (2024-2025).",
+          "Dan dau ve hoc tap trai nghiem ket hop kinh nghiem lam viec."
+        ],
+        "highlights": [
+          "Mo hinh Scholar-Practitioner.",
+          "Nhan bang MED tu truong tu thuc hang dau My voi chi phi phu hop.",
+          "Du an Experiential Network (XN) ket noi case study thuc te.",
+          "Capstone Project va ePortfolio sau tot nghiep.",
+          "Ket noi mang luoi cuu sinh vien va doanh nghiep doi tac."
+        ],
+        "duration": "18-21 thang (phu thuoc chuyen nganh lua chon)",
+        "tuition_original": "$49,050 (1,274,000,000 VND)",
+        "tuition_after_scholarship": "$12,100 (315,000,000 VND)",
+        "scholarship_note": "Hoc bong 75% danh cho hoc vien Viet Nam"
+      }
+    ],
+    "tien_si": [
+      {
+        "id": "ggu-dba",
+        "university": "Golden Gate University",
+        "program_name": "CHUONG TRINH DBA GOLDEN GATE UNIVERSITY",
+        "duration": "27 thang",
+        "tuition_original": "$65,800 (1,700,000,000 VND)",
+        "tuition_after_scholarship": "$14,400 (375,000,000 VND)",
+        "scholarship_note": "Hoc bong 80% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "ggu-dba-emerging-tech-genai",
+        "university": "Golden Gate University",
+        "program_name": "DBA EMERGING TECHNOLOGIES WITH CONCENTRATION IN GENERATIVE AI - GGU",
+        "highlights": [
+          "Can bang giua cong nghe, quan tri kinh doanh va phuong phap nghien cuu.",
+          "Giang vien kinh nghiem lon trong AI/ML, bang sang che va cong bo khoa hoc.",
+          "Trải nghiem toan cau tai San Francisco, Singapore, Mumbai/Bangalore.",
+          "Co hoi huong den cac ket qua hoc thuat: bai bao, sach, dang ky bang sang che."
+        ],
+        "duration": "27 thang",
+        "tuition_original": "$65,800 (1,700,000,000 VND)",
+        "tuition_after_scholarship": "$28,400 (660,000,000 VND)",
+        "scholarship_note": "Hoc bong 80% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "edgewood-dba",
+        "university": "Edgewood University",
+        "program_name": "CHUONG TRINH DBA EDGEWOOD UNIVERSITY",
+        "duration": "24 thang",
+        "tuition_original": "$22,500 (585,000,000 VND)",
+        "tuition_after_scholarship": "$10,900 (285,000,000 VND)",
+        "scholarship_note": "Hoc bong 50% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "edgewood-edd",
+        "university": "Edgewood University",
+        "program_name": "DOCTOR OF EDUCATION (EDD) EDGEWOOD UNIVERSITY",
+        "duration": "24 thang",
+        "tuition_original": "$33,750 (877,500,000 VND)",
+        "tuition_after_scholarship": "$10,900 (285,000,000 VND)",
+        "scholarship_note": "Hoc bong 60% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "liverpool-iiitb-ms-data-science",
+        "university": "Liverpool John Moores University + IIITB",
+        "program_name": "MASTER OF DATA SCIENCE IIITB - LIVERPOOL JOHN MOORES",
+        "duration": "17-20 thang",
+        "tuition_original": "£30,000 (1,058,000,000 VND)",
+        "tuition_after_scholarship": "$5,200 (185,000,000 VND)",
+        "scholarship_note": "Hoc bong 95% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "umass-lowell-med",
+        "university": "UMass Lowell University",
+        "program_name": "MASTER OF EDUCATION (MED) - UMASS LOWELL UNIVERSITY",
+        "duration": "18 thang",
+        "tuition_original": "$42,000 (1,090,000,000 VND)",
+        "tuition_after_scholarship": "$9,500 (247,000,000 VND)",
+        "scholarship_note": "Hoc bong 80% danh cho hoc vien Viet Nam"
+      }
+    ],
+    "song_bang_thac_si_tien_si": [
+      {
+        "id": "ggu-mba-dba-pathway",
+        "university": "Golden Gate University",
+        "program_name": "MBA - DBA PATHWAY GGU",
+        "duration": "36 thang",
+        "tuition_original": "$80,200 (2,100,000,000 VND)",
+        "tuition_after_scholarship": "$17,100 (442,000,000 VND)",
+        "scholarship_note": "Hoc bong 80% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "edgewood-dual-mba-dba",
+        "university": "Edgewood University",
+        "program_name": "DUAL MBA - DBA EDGEWOOD UNIVERSITY",
+        "duration": "30 thang",
+        "tuition_original": "$30,000 (780,000,000 VND)",
+        "tuition_after_scholarship": "$10,900 (370,000,000 VND)",
+        "scholarship_note": "Hoc bong 50% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "edgewood-dual-med-edd",
+        "university": "Edgewood University",
+        "program_name": "DUAL MED - EDD EDGEWOOD UNIVERSITY",
+        "duration": "30 thang",
+        "tuition_original": "$42,000 (1,090,000,000 VND)",
+        "tuition_after_scholarship": "$10,900 (370,000,000 VND)",
+        "scholarship_note": "Hoc bong 50% danh cho hoc vien Viet Nam"
+      },
+      {
+        "id": "liverpool-iiitb-ml-genai",
+        "university": "Liverpool John Moores University + IIITB",
+        "program_name": "MASTER OF MACHINE LEARNING & GENERATIVE AI IIITB - LIVERPOOL JOHN MOORES",
+        "duration": "17-20 thang",
+        "tuition_original": "£30,000 (1,058,000,000 VND)",
+        "tuition_after_scholarship": "$5,200 (185,000,000 VND)",
+        "scholarship_note": "Hoc bong 95% danh cho hoc vien Viet Nam"
+      }
+    ]
+  },
+  "admissions_and_policy": {
+    "cau_truc_chuong_trinh_hoc": {
+      "golden_gate_general_policy": "Tat ca chuong trinh duoc cung cap qua nen tang upGrad LMS. Han nop bat buoc, khong thuong luong. Diem hien thi tren LMS va cap nhat portal trong 21 ngay.",
+      "edgewood_dba_structure": {
+        "tong_tin_chi": 45,
+        "core_courses": "8 mon, moi mon 3 tin chi",
+        "elective_courses": "3 mon, moi mon 3 tin chi",
+        "applied_doctoral_research": "4 mon, moi mon 3 tin chi",
+        "assessment": [
+          "MCQ co cham diem",
+          "Discussion board co cham diem",
+          "Project mon hoc (co the co bai nop trung gian)",
+          "Giai doan nghien cuu huong toi dong gop moi va giai quyet bai toan kinh doanh thuc te"
+        ]
+      }
+    },
+    "yeu_cau_dau_vao": {
+      "thac_si": {
+        "golden_gate": "Cu nhan GPA toi thieu 2.25/4.0 (5.5/10) + hoan thanh application dung han",
+        "edgewood": "Cu nhan GPA toi thieu 2.0/4.0 (5.0/10) + hoan thanh application dung han",
+        "liverpool_john_moores": "Cu nhan GPA toi thieu 2.25/4.0 (5.5/10) + hoan thanh application dung han",
+        "other": "Cu nhan GPA toi thieu 2.0/4.0 (5.0/10) + hoan thanh application dung han"
+      },
+      "tien_si": {
+        "golden_gate": "Co bang Thac si, hoac Cu nhan GPA >= 2.25/4.0 (5.5/10) va 5 nam kinh nghiem",
+        "edgewood": "Co bang Thac si, hoac Cu nhan GPA >= 2.0/4.0 (5.0/10) va 5 nam kinh nghiem",
+        "liverpool_john_moores": "Co bang Thac si, hoac Cu nhan GPA >= 2.25/4.0 (5.5/10) va 5 nam kinh nghiem"
+      }
+    },
+    "cac_buoc_nop_ho_so": {
+      "golden_gate": [
+        "Dien dang ky tren website upGrad.",
+        "Gui email xin nhap hoc va hoc bong den scholarships@goldengateuniversity.com (cc minh.pham@upgrad.com, an.le@upgrad.com).",
+        "Nhan offer letter (4-5 ngay), nop Block Seat 12,000,000 VND trong 48h.",
+        "Upload full ho so trong 7 ngay.",
+        "Dong hoc phi con lai trong 7 ngay hoac truoc ngay khai giang."
+      ],
+      "edgewood": [
+        "Dien dang ky tren website upGrad.",
+        "Gui email xin nhap hoc va hoc bong den onlineadmissions@edgewood.edu (cc minh.pham@upgrad.com, an.le@upgrad.com).",
+        "Nhan offer letter (4-5 ngay), nop Block Seat 12,000,000 VND trong 48h.",
+        "Upload full ho so trong 7 ngay.",
+        "Dong hoc phi con lai trong 7 ngay hoac truoc ngay khai giang."
+      ],
+      "northeastern": [
+        "Buoc 1: Sang loc ho so ban dau (bang, bang diem, tieng Anh, SOP, CV, thu gioi thieu...).",
+        "Buoc 2: Dien Slate Form truong + Application Form tren upGrad.",
+        "Hoan tat upload va submit ho so theo yeu cau."
+      ]
+    },
+    "ho_so_yeu_cau": {
+      "thac_si": {
+        "golden_gate": [
+          "Bang cu nhan + bang diem (ban goc + dich Anh)",
+          "Ho chieu/CCCD",
+          "Anh chan dung",
+          "SOP toi thieu 500 chu (dao van < 15%, khong dung AI)",
+          "CV moi nhat"
+        ],
+        "edgewood": [
+          "Bang cu nhan + bang diem (ban goc + dich Anh)",
+          "Ho chieu/CCCD",
+          "Anh chan dung",
+          "SOP toi thieu 500 chu (dao van < 15%, khong dung AI)",
+          "CV moi nhat"
+        ],
+        "liverpool_john_moores": [
+          "Bang cu nhan + bang diem (ban goc + dich Anh)",
+          "Ho chieu/CCCD",
+          "Anh chan dung"
+        ],
+        "northeastern": [
+          "Bang cu nhan + bang diem",
+          "Chung chi tieng Anh hop le (neu can)",
+          "02 thu gioi thieu",
+          "CV",
+          "SOP theo de bai cua truong"
+        ]
+      },
+      "tien_si": {
+        "golden_gate": [
+          "Bang/diem cu nhan, bang/diem thac si (neu co)",
+          "Ho chieu/CCCD",
+          "Anh chan dung",
+          "SOP toi thieu 500 chu (dao van < 15%, khong dung AI)",
+          "CV moi nhat"
+        ],
+        "edgewood": [
+          "Bang/diem cu nhan va thac si",
+          "Ho chieu/CCCD",
+          "Anh chan dung",
+          "SOP toi thieu 500 chu (dao van < 15%, khong dung AI)",
+          "CV moi nhat"
+        ]
+      }
+    },
+    "cong_nhan_van_bang": "Bang cap cap boi truong dai hoc nuoc ngoai da kiem dinh hop phap quoc te. Cong nhan tai Viet Nam phu thuoc xet duyet tung ho so cua Bo GD&DT theo quy dinh tung thoi diem; chuong trinh 100% online hien chua duoc cong nhan chinh thuc.",
+    "chat_luong_chuong_trinh": "Chuong trinh Thac si/Tien si do upGrad trien khai cap bang truc tiep tu cac truong doi tac My va duoc kiem dinh boi cac to chuc kiem dinh vung (WSCUC/HLC).",
+    "noi_dung_giang_day": [
+      "Noi dung do giang vien cua truong thiet ke va giang day; upGrad la dai dien tuyen sinh.",
+      "Cap nhat dinh ky theo case study thuc te; cac chuong trinh MBA/DBA co Data Analytics, AI, Business Strategy.",
+      "Hoc vien duoc ho tro boi giang vien hoc thuat, advisor, doi ky thuat."
+    ],
+    "thoi_gian_hoc": "Hoc vien nen danh 12-15 gio/tuan (1.5-2 gio/ngay), mien hoan thanh dung deadline.",
+    "dinh_huong_hoc_vien": "Neu muc tieu la thu tuc hanh chinh nha nuoc, can can nhac ky. Neu uu tien phat trien su nghiep doanh nghiep/tu nhan/quoc te, chuong trinh co gia tri thuc te cao.",
+    "gia_tri_thuc_te": [
+      "Kien thuc quan tri thuc tien cap nhat xu huong thi truong",
+      "Mang luoi hoc vien va chuyen gia trong nganh",
+      "Kha nang ap dung truc tiep vao cong viec va thang tien"
+    ]
+  },
+  "tuition_plans": {
+    "ke_hoach_dong_hoc_phi_chung": "Co the thanh toan 1 lan truoc khai giang hoac chia 3 dot, moi dot cach nhau 2 thang. Co the thanh toan bang the tin dung. Thanh toan 1 lan co the xin them uu dai 15 trieu (optional).",
+    "pay_as_you_go": {
+      "goi_375_trieu": "Chia 12 thang lien tiep, tru block seat 23,000,000 VND; moi thang 29,333,333 VND; hoan 15,000,000 VND sau khi hoan tat hoc phi.",
+      "goi_285_trieu": "Chia 12 thang lien tiep, tru block seat 12,000,000 VND; moi thang 22,750,000 VND; hoan 15,000,000 VND sau khi hoan tat hoc phi."
+    },
+    "plan_40_60": "Dong truoc 40%, 60% con lai hoan thanh trong 6 thang tiep theo (chi tiet gui sau khi xet duyet ho so).",
+    "emi_examples": {
+      "goi_375_trieu": [
+        "PA1: Dong 1 lan - block seat 23,000,000 VND + 352,000,000 VND sau 7 ngay",
+        "PA2: 3 dot (vi du): 117,000,000 VND + 117,000,000 VND + 118,000,000 VND (sau block seat)"
+      ],
+      "goi_285_trieu": [
+        "PA1: Dong 1 lan - block seat 12,000,000 VND + 273,000,000 VND sau 7 ngay",
+        "PA2: 3 dot (vi du): 91,000,000 VND + 91,000,000 VND + 91,000,000 VND (sau block seat)"
+      ]
+    }
+  },
+  "email_template_thanh_toan": {
+    "subject_example": "Link thanh toan theo chuong trinh tra gop",
+    "body_summary": [
+      "Gui link thanh toan tra gop 06 thang.",
+      "Tong so tien sau khi tru block seat.",
+      "Luu y han muc/sodu the va han thanh toan tung ky.",
+      "Yeu cau gui screenshot xac nhan sau lan thanh toan dau tien."
+    ]
+  }
+}

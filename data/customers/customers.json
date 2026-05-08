@@ -1,0 +1,86 @@
+﻿{
+  "last_updated": "2026-05-08",
+  "testimonials": [
+    {
+      "id": "cust-001",
+      "name": "Tran Quoc Dai",
+      "position": "Hoc vien MBA truc tuyen",
+      "program": "MBA",
+      "quote": "Doi voi toi, chuong trinh MBA truc tuyen nay chinh la chiec chia khoa vang giup toi thang tien manh me trong su nghiep. Viec hoc tap khong chi cung cap kien thuc quan tri hien dai ma con mo ra cho toi nhung co hoi nghe nghiep moi day hua hen. Toi cam thay day la mot buoc di dung dan de dinh huong lai ban than va nang cap hanh trinh phat trien chuyen mon cua minh mot cach chuyen nghiep nhat."
+    },
+    {
+      "id": "cust-002",
+      "name": "Bui Thi Thanh Nhan",
+      "position": "Hoc vien Ed.D truc tuyen",
+      "program": "Ed.D",
+      "quote": "Du hanh trinh hoc Tien si Giao duc truc tuyen mang lai cho toi nhung ap luc hien huu, nhung toi khang dinh rang nhung gia tri nhan lai la hoan toan xung tam. Nhung kien thuc chuyen sau ma chuong trinh cung cap da giup toi thay doi tu duy va nang cao vi the trong nganh giao duc. Toi tin rang su dau tu nay la vo cung xung dang cho nhung buoc tien xa hon va ben vung trong tuong lai."
+    },
+    {
+      "id": "cust-003",
+      "name": "Ta Huu Hien",
+      "position": "Hoc vien DBA ung dung",
+      "program": "DBA",
+      "quote": "Tham gia chuong trinh DBA da giup toi thay doi hoan toan tu duy quan tri, chuyen tu viec ra quyet dinh dua tren cam tinh sang loi lanh dao bang du lieu. Nhung cong cu thuc tien tu chuong trinh giup toi giai quyet cac bai toan kinh doanh mot cach khoa hoc va hieu qua hon rat nhieu. Day chinh la nen tang vung chac de toi khang dinh nang luc lanh dao cua minh trong moi truong kinh te bien dong hien nay."
+    },
+    {
+      "id": "cust-004",
+      "name": "Tran Kien Dung",
+      "position": "Hoc vien DBA truc tuyen",
+      "program": "DBA",
+      "quote": "Dieu toi tam dac nhat la co the theo duoi chuong trinh hoc thuat cao cap nay ma khong he lam gian doan su nghiep hien tai. Su linh hoat cua nen tang truc tuyen cho phep toi vua dam bao tot cong viec quan ly, vua co the hoan thanh cac nghien cuu quan trong. Day la mot giai phap hoc tap ly tuong giup toi lien tuc nang cap ban than ma van giu vung phong do trong cong tac dieu hanh."
+    },
+    {
+      "id": "cust-005",
+      "name": "Thai Bao",
+      "position": "COO He thong K12",
+      "program": "Chuong trinh hoc upGrad",
+      "quote": "Chuong trinh hoc tai upGrad thuc su la mot cu hich lon cho su nghiep giao duc cua toi. Nhung kien thuc thuc chien va tam nhin quoc te da giup toi tu tin hon trong vai tro dieu hanh tai he thong K12. Toi nhan thay gia tri cua viec hoc that khong chi nam o tam bang, ma la nhung thay doi tich cuc va hieu qua thuc tien ma toi co the mang lai cho to chuc cua minh."
+    },
+    {
+      "id": "cust-006",
+      "name": "Nguyen Thi Kim Thuy",
+      "position": "Hoc vien MBA quoc te",
+      "program": "MBA quoc te",
+      "quote": "Voi toi, tam bang MBA quoc te chinh la be phong hoan hao de toi co the tang toc su nghiep mot cach manh me. Chuong trinh hoc khong chi mang lai kien thuc quan tri chuan toan cau ma con giup toi mo rong tam nhin, tu tin hon khi doi mat voi nhung thach thuc lon trong cong viec. Day thuc su la mot hanh trinh thay doi ban than dang gia, giup toi but pha va dat duoc nhung cot moc moi trong su nghiep cua minh."
+    },
+    {
+      "id": "cust-007",
+      "name": "Bao Quyen",
+      "position": "Hoc vien MBA - Macmillan Publishers",
+      "program": "MBA",
+      "quote": "Toi luon quan niem rang viec theo duoi MBA la mot khoan dau tu dai han cho su nghiep va thuc te da chung minh dieu do hoan toan dung dan. Nhung kien thuc chien luoc tu chuong trinh da giup toi co cai nhin sau sac va toan dien hon trong cac quyet dinh kinh doanh tai Macmillan Publishers. Toi tin rang su chuan bi ky luong ve mat tri thuc nay se la nen tang vung chac de toi phat trien ben vung va khong ngung tien xa hon nua."
+    },
+    {
+      "id": "cust-008",
+      "name": "Doan Ngoc Duy",
+      "position": "Hoc vien DBA - Cong ty Ba Huan",
+      "program": "DBA",
+      "quote": "Tai doanh nghiep, toi luon khao khat tim kiem nhung giai phap quan tri toi uu, va chuong trinh DBA chinh la chia khoa giup toi nang tam su nghiep. Qua trinh nghien cuu sau giup toi ren luyen tu duy phan bien va kha nang giai quyet cac van de phuc tap cua doanh nghiep mot cach khoa hoc. Day khong chi la mot danh hieu hoc thuat, ma la qua trinh chuyen doi de toi tro thanh mot nha lanh dao co tam nhin chien luoc va ban linh hon."
+    }
+  ],
+  "customer_story_templates": [
+    {
+      "id": "story-template-01",
+      "title": "Tu truong nhom len giam doc bo phan trong 18 thang",
+      "outline": [
+        "Boi canh truoc khi hoc",
+        "Ly do chon chuong trinh",
+        "Thach thuc khi vua hoc vua lam",
+        "Cach sap xep lich hoc",
+        "Ket qua ve thu nhap/chuc vu",
+        "Loi khuyen cho nguoi dang can nhac"
+      ]
+    },
+    {
+      "id": "story-template-02",
+      "title": "Chuyen nganh thanh cong nho bang cao hoc online",
+      "outline": [
+        "Diem xuat phat nghe nghiep",
+        "Khoang trong nang luc can bo sung",
+        "Chu de hoc phan tac dong manh nhat",
+        "Buoc ngoat nghe nghiep sau tot nghiep",
+        "Gia tri dai han cua mang luoi alumni"
+      ]
+    }
+  ]
+}
