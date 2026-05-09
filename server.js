@@ -282,7 +282,7 @@ async function handleApi(req, res, url) {
   }
 }
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   if (url.pathname.startsWith("/api/")) {
@@ -310,9 +310,17 @@ const server = http.createServer(async (req, res) => {
   }
 
   return serveStaticFile(res, path.join(ROOT, requested));
-});
+}
 
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-  console.log(`Admin panel: http://localhost:${PORT}/admin`);
-});
+module.exports = handleRequest;
+
+if (!process.env.VERCEL) {
+  const server = http.createServer((req, res) => {
+    handleRequest(req, res);
+  });
+
+  server.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Admin panel: http://localhost:${PORT}/admin`);
+  });
+}
