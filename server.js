@@ -38,11 +38,29 @@ CREATE TABLE IF NOT EXISTS orders (
   product_id INTEGER NOT NULL,
   amount REAL NOT NULL CHECK(amount >= 0),
   status TEXT NOT NULL DEFAULT 'pending',
+  payment_code TEXT,
+  sepay_transaction_id INTEGER UNIQUE,
+  sepay_reference_code TEXT,
+  paid_at TEXT,
   purchased_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY(customer_id) REFERENCES customers(id),
   FOREIGN KEY(product_id) REFERENCES products(id)
 );
 `);
+
+function ensureColumn(tableName, columnName, columnDef) {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  const exists = columns.some((column) => column.name === columnName);
+  if (!exists) {
+    db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`);
+  }
+}
+
+ensureColumn("orders", "payment_code", "TEXT");
+ensureColumn("orders", "sepay_transaction_id", "INTEGER");
+ensureColumn("orders", "sepay_reference_code", "TEXT");
+ensureColumn("orders", "paid_at", "TEXT");
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_sepay_transaction_id ON orders(sepay_transaction_id)");
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -125,6 +143,10 @@ function getAllOrders() {
         o.product_id,
         o.amount,
         o.status,
+        o.payment_code,
+        o.sepay_transaction_id,
+        o.sepay_reference_code,
+        o.paid_at,
         o.purchased_at,
         c.name AS customer_name,
         p.name AS product_name
@@ -146,6 +168,35 @@ function withTransaction(work) {
     db.exec("ROLLBACK");
     throw error;
   }
+}
+
+function findOrderByTransferContent(content, code) {
+  const normalizedContent = String(content || "").toUpperCase();
+  const normalizedCode = String(code || "").toUpperCase();
+  const pendingOrders = db
+    .prepare(
+      "SELECT id, payment_code, status FROM orders WHERE status = 'pending' ORDER BY id DESC"
+    )
+    .all();
+
+  for (const order of pendingOrders) {
+    const paymentCode = String(order.payment_code || "").toUpperCase().trim();
+    if (!paymentCode) continue;
+    if (normalizedContent.includes(paymentCode) || normalizedCode === paymentCode) {
+      return order;
+    }
+  }
+
+  const fallback = normalizedContent.match(/DH(\d{1,8})/);
+  if (fallback) {
+    const orderId = Number(fallback[1]);
+    if (orderId) {
+      return db
+        .prepare("SELECT id, payment_code, status FROM orders WHERE id = ? AND status = 'pending'")
+        .get(orderId);
+    }
+  }
+  return null;
 }
 
 async function handleApi(req, res, url) {
@@ -235,6 +286,7 @@ async function handleApi(req, res, url) {
       const productId = Number(body.product_id);
       const amount = Number(body.amount);
       const status = (body.status || "pending").trim();
+      const paymentCodeRaw = String(body.payment_code || "").trim();
       if (!customerId || !productId || !Number.isFinite(amount) || amount < 0) {
         return sendJson(res, 400, { error: "Dữ liệu đơn hàng không hợp lệ" });
       }
@@ -246,9 +298,13 @@ async function handleApi(req, res, url) {
         if (!product) throw new Error("Sản phẩm không tồn tại");
         if (product.stock_quantity <= 0) throw new Error("Sản phẩm đã hết hàng");
 
-        db.prepare(
+        const insertResult = db.prepare(
           "INSERT INTO orders(customer_id, product_id, amount, status, purchased_at) VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')))"
         ).run(customerId, productId, amount, status, body.purchased_at || null);
+
+        const insertedId = Number(insertResult.lastInsertRowid);
+        const paymentCode = paymentCodeRaw || `DH${String(insertedId).padStart(3, "0")}`;
+        db.prepare("UPDATE orders SET payment_code = ? WHERE id = ?").run(paymentCode, insertedId);
 
         db.prepare("UPDATE products SET stock_quantity = stock_quantity - 1 WHERE id = ?").run(productId);
       });
@@ -263,12 +319,13 @@ async function handleApi(req, res, url) {
       const productId = Number(body.product_id);
       const amount = Number(body.amount);
       const status = (body.status || "pending").trim();
+      const paymentCode = String(body.payment_code || "").trim();
       if (!id || !customerId || !productId || !Number.isFinite(amount) || amount < 0) {
         return sendJson(res, 400, { error: "Dữ liệu cập nhật đơn hàng không hợp lệ" });
       }
       db.prepare(
-        "UPDATE orders SET customer_id = ?, product_id = ?, amount = ?, status = ?, purchased_at = COALESCE(?, purchased_at) WHERE id = ?"
-      ).run(customerId, productId, amount, status, body.purchased_at || null, id);
+        "UPDATE orders SET customer_id = ?, product_id = ?, amount = ?, status = ?, payment_code = COALESCE(NULLIF(?, ''), payment_code), purchased_at = COALESCE(?, purchased_at) WHERE id = ?"
+      ).run(customerId, productId, amount, status, paymentCode, body.purchased_at || null, id);
       return sendJson(res, 200, { ok: true });
     }
 
@@ -276,6 +333,40 @@ async function handleApi(req, res, url) {
       const id = Number(url.pathname.split("/").pop());
       db.prepare("DELETE FROM orders WHERE id = ?").run(id);
       return sendJson(res, 200, { ok: true });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/sepay-webhook") {
+      const payload = await readJsonBody(req);
+      const transferType = String(payload.transferType || "").toLowerCase();
+      const transferAmount = Number(payload.transferAmount || 0);
+      const content = String(payload.content || payload.description || "");
+      const code = String(payload.code || "");
+      const transactionId = Number(payload.id || 0);
+      const referenceCode = String(payload.referenceCode || "");
+
+      if (transferType !== "in" || !Number.isFinite(transferAmount) || transferAmount <= 0) {
+        return sendJson(res, 200, { success: true, ignored: true });
+      }
+
+      if (transactionId) {
+        const existed = db
+          .prepare("SELECT id FROM orders WHERE sepay_transaction_id = ? LIMIT 1")
+          .get(transactionId);
+        if (existed) {
+          return sendJson(res, 200, { success: true, duplicate: true, order_id: existed.id });
+        }
+      }
+
+      const matchedOrder = findOrderByTransferContent(content, code);
+      if (!matchedOrder) {
+        return sendJson(res, 200, { success: true, matched: false });
+      }
+
+      db.prepare(
+        "UPDATE orders SET status = 'success', sepay_transaction_id = COALESCE(?, sepay_transaction_id), sepay_reference_code = COALESCE(NULLIF(?, ''), sepay_reference_code), paid_at = COALESCE(?, datetime('now')) WHERE id = ? AND status = 'pending'"
+      ).run(transactionId || null, referenceCode, payload.transactionDate || null, matchedOrder.id);
+
+      return sendJson(res, 200, { success: true, matched: true, order_id: matchedOrder.id });
     }
 
     return sendJson(res, 404, { error: "API not found" });
