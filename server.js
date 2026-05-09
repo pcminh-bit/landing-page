@@ -7,9 +7,21 @@ const { DatabaseSync } = require("node:sqlite");
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
-const DB_PATH = path.join(ROOT, "brain.db");
+const SOURCE_DB_PATH = path.join(ROOT, "brain.db");
+const DB_PATH = process.env.VERCEL ? "/tmp/brain.db" : SOURCE_DB_PATH;
 const CURSOR_ASSETS_DIR =
   "C:/Users/ASUS/.cursor/projects/g-My-Drive-AI-Challenge-Day-2-landing-page/assets";
+
+if (process.env.VERCEL) {
+  try {
+    if (!fs.existsSync(DB_PATH) && fs.existsSync(SOURCE_DB_PATH)) {
+      fs.copyFileSync(SOURCE_DB_PATH, DB_PATH);
+    }
+  } catch (error) {
+    console.error("Can not initialize writable DB on Vercel:", error.message);
+  }
+}
+
 const db = new DatabaseSync(DB_PATH);
 
 db.exec(`
