@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <main class="admin-wrap">
+    <h1>Admin Panel</h1>
+    <p class="subtitle">Quản lý Sản phẩm, Khách hàng và Đơn hàng</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="products">Sản phẩm</button>
+      <button class="tab-btn" data-tab="customers">Khách hàng</button>
+      <button class="tab-btn" data-tab="orders">Đơn hàng</button>
+    </div>
+
+    <section class="tab-panel active" id="products-panel">
+      <div class="panel-header">
+        <h2>Sản phẩm</h2>
+        <button id="add-product-btn">+ Thêm sản phẩm</button>
+      </div>
+      <div id="products-table-wrap"></div>
+    </section>
+
+    <section class="tab-panel" id="customers-panel">
+      <div class="panel-header">
+        <h2>Khách hàng</h2>
+        <button id="add-customer-btn">+ Thêm khách hàng</button>
+      </div>
+      <div id="customers-table-wrap"></div>
+    </section>
+
+    <section class="tab-panel" id="orders-panel">
+      <div class="panel-header">
+        <h2>Đơn hàng</h2>
+        <button id="add-order-btn">+ Thêm đơn hàng</button>
+      </div>
+      <div id="orders-table-wrap"></div>
+    </section>
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>

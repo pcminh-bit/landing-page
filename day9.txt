@@ -1,0 +1,14 @@
+Website bên mình vừa có thêm "nhân viên tư vấn tự động" 24/7 rồi cả nhà ơi 🤖
+
+Giờ khách ghé web lúc nào cũng có người trả lời ngay:
+- Hỏi học phí
+- Hỏi thời gian học
+- Hỏi bằng cấp, hồ sơ, quy trình
+- Hoặc chỉ cần nhắn mục tiêu + ngân sách, bot sẽ gợi ý chương trình phù hợp luôn
+
+Nói ngắn gọn là: đêm khuya hay sáng sớm, cứ vào chat là có người hỗ trợ liền.
+
+Mời mọi người ghé trải nghiệm thử nha:
+[DAN_LINK_WEBSITE_CUA_BAN_VAO_DAY]
+
+Ai test xong nhớ nhắn feedback cho mình để mình tối ưu bot ngày càng thông minh hơn nhe!
