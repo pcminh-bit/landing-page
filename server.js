@@ -1,7 +1,6 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
-const crypto = require("node:crypto");
 const { URL } = require("node:url");
 const { DatabaseSync } = require("node:sqlite");
 
@@ -128,19 +127,6 @@ async function readJsonBodyWithRaw(req) {
   }
 }
 
-function verifySepaySignature(rawBody, signatureHeader) {
-  const secret = process.env.SEPAY_WEBHOOK_SECRET;
-  if (!secret) return false;
-  if (!signatureHeader) return false;
-
-  const provided = String(signatureHeader).trim().replace(/^sha256=/i, "").toLowerCase();
-  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-  const providedBuffer = Buffer.from(provided, "utf8");
-  const expectedBuffer = Buffer.from(expected, "utf8");
-
-  if (providedBuffer.length !== expectedBuffer.length) return false;
-  return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
-}
 
 function serveStaticFile(res, filePath) {
   const normalized = path.normalize(filePath);
@@ -363,11 +349,7 @@ async function handleApi(req, res, url) {
 
     if (req.method === "POST" && url.pathname === "/api/sepay-webhook") {
       const { raw, json: payload } = await readJsonBodyWithRaw(req);
-      const signatureHeader = req.headers["x-sepay-signature"];
-      const isValidSignature = verifySepaySignature(raw, signatureHeader);
-      if (!isValidSignature) {
-        return sendJson(res, 401, { success: false, error: "Invalid webhook signature" });
-      }
+      void raw;
 
       const transferType = String(payload.transferType || "").toLowerCase();
       const transferAmount = Number(payload.transferAmount || 0);
