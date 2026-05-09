@@ -24,6 +24,17 @@ h1 {
   color: #4b5563;
 }
 
+.store-banner {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .tabs {
   display: flex;
   gap: 8px;

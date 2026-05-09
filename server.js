@@ -22,6 +22,9 @@ function loadEnvFile(envPath) {
 
 loadEnvFile(path.join(__dirname, ".env"));
 
+const { usePostgresStore } = require("./pg-store");
+const { handleApiPostgres } = require("./api-postgres");
+
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
@@ -41,6 +44,12 @@ if (process.env.VERCEL) {
 }
 
 const db = new DatabaseSync(DB_PATH);
+
+if (process.env.VERCEL && !process.env.DATABASE_URL) {
+  console.warn(
+    "[landing] DATABASE_URL is not set on Vercel. SQLite in /tmp will not be shared between serverless instances. Add a Neon Postgres DATABASE_URL for consistent admin + webhook data."
+  );
+}
 
 db.exec(`
 PRAGMA foreign_keys = ON;
@@ -262,6 +271,21 @@ function ensureDefaultProductId() {
 
 async function handleApi(req, res, url) {
   try {
+    if (req.method === "GET" && url.pathname === "/api/store-info") {
+      return sendJson(res, 200, {
+        postgres: Boolean(process.env.DATABASE_URL),
+        vercel: Boolean(process.env.VERCEL),
+      });
+    }
+
+    if (usePostgresStore) {
+      return await handleApiPostgres(req, res, url, {
+        sendJson,
+        readJsonBody,
+        readJsonBodyWithRaw,
+      });
+    }
+
     if (req.method === "GET" && url.pathname === "/api/products") {
       return sendJson(res, 200, getAllProducts());
     }
@@ -468,7 +492,7 @@ async function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   if (url.pathname.startsWith("/api/")) {
-    return handleApi(req, res, url);
+    return await handleApi(req, res, url);
   }
 
   if (url.pathname.startsWith("/_cursor_assets/")) {
@@ -506,7 +530,12 @@ module.exports = handleRequest;
 
 if (!process.env.VERCEL) {
   const server = http.createServer((req, res) => {
-    handleRequest(req, res);
+    Promise.resolve(handleRequest(req, res)).catch((err) => {
+      console.error(err);
+      if (res.headersSent) return;
+      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: err.message || "Internal server error" }));
+    });
   });
 
   server.listen(PORT, () => {

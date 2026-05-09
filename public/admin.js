@@ -34,15 +34,35 @@
     return payload;
   }
 
+  function renderStoreBanner(info) {
+    const el = document.getElementById("store-banner");
+    if (!el) return;
+    if (info.vercel && !info.postgres) {
+      el.hidden = false;
+      el.textContent =
+        "Cảnh báo: SQLite trên Vercel lưu trong /tmp theo từng instance serverless. Webhook và trang Admin có thể thấy hai bộ dữ liệu khác nhau — tab Đơn hàng có thể trống dù webhook trả 200 OK. Thêm DATABASE_URL (Neon Postgres) trong Environment Variables để dữ liệu webhook và admin dùng chung.";
+    } else {
+      el.hidden = true;
+      el.textContent = "";
+    }
+  }
+
   async function loadAll() {
+    let storeInfo = { vercel: false, postgres: false };
+    try {
+      const r = await fetch("/api/store-info");
+      if (r.ok) storeInfo = await r.json();
+    } catch (_) {}
+
     const [products, customers, orders] = await Promise.all([
       api("/api/products"),
       api("/api/customers"),
       api("/api/orders"),
     ]);
-    state.products = products;
-    state.customers = customers;
-    state.orders = orders;
+    state.products = Array.isArray(products) ? products : [];
+    state.customers = Array.isArray(customers) ? customers : [];
+    state.orders = Array.isArray(orders) ? orders : [];
+    renderStoreBanner(storeInfo);
     renderProducts();
     renderCustomers();
     renderOrders();
@@ -152,6 +172,7 @@
         (item) => `
         <tr>
           <td>${item.id}</td>
+          <td>${item.order_code || ""}</td>
           <td>${item.customer_name || `#${item.customer_id}`}</td>
           <td>${item.product_name || `#${item.product_id}`}</td>
           <td>${formatMoney(item.amount)}</td>
@@ -171,7 +192,7 @@
       <table>
         <thead>
           <tr>
-            <th>ID</th><th>Khach hang</th><th>San pham</th><th>So tien</th><th>Trang thai</th><th>Ngay mua</th><th>Hanh dong</th>
+            <th>ID</th><th>Ma don</th><th>Khach hang</th><th>San pham</th><th>So tien</th><th>Trang thai</th><th>Ngay mua</th><th>Hanh dong</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
