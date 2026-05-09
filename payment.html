@@ -56,6 +56,43 @@
       font-size: 14px;
       line-height: 1.5;
     }
+    .form-wrap {
+      margin-top: 18px;
+      text-align: left;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px;
+      background: #fafafa;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .form-wrap input {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 10px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .form-wrap button {
+      margin-top: 10px;
+      border: 0;
+      background: #111827;
+      color: #fff;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+    }
+    .form-note {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #4b5563;
+    }
     .back {
       margin-top: 20px;
       display: inline-block;
@@ -78,10 +115,63 @@
         src="/assets/qr-sepay.png"
         alt="QR thanh toán SePay"
       />
-      <p class="note">Nội dung chuyển khoản: <span class="code">DH001</span></p>
+      <p class="note">Nội dung chuyển khoản: <span class="code" id="orderCodeText">DH001</span></p>
+      <div class="form-wrap">
+        <div class="form-grid">
+          <input id="customerName" placeholder="Họ và tên" />
+          <input id="customerPhone" placeholder="Số điện thoại" />
+          <input id="customerZalo" placeholder="Zalo (không bắt buộc)" />
+          <input id="orderAmount" type="number" min="1000" step="1000" value="1000" placeholder="Số tiền" />
+        </div>
+        <button id="createOrderBtn" type="button">Tạo đơn thanh toán</button>
+        <div class="form-note" id="orderResultText">Bấm "Tạo đơn thanh toán" để tạo mã đơn mới trước khi chuyển khoản.</div>
+      </div>
       <p class="hint">Sau khi chuyển khoản xong, vui lòng chụp màn hình giao dịch và gửi qua Zalo để được xác nhận nhanh.</p>
       <a class="back" href="/">Quay về trang chủ</a>
     </div>
   </div>
+  <script>
+    (function () {
+      const btn = document.getElementById("createOrderBtn");
+      const nameInput = document.getElementById("customerName");
+      const phoneInput = document.getElementById("customerPhone");
+      const zaloInput = document.getElementById("customerZalo");
+      const amountInput = document.getElementById("orderAmount");
+      const codeText = document.getElementById("orderCodeText");
+      const resultText = document.getElementById("orderResultText");
+
+      btn.addEventListener("click", async () => {
+        const name = nameInput.value.trim();
+        const phone = phoneInput.value.trim();
+        const zalo = zaloInput.value.trim();
+        const amount = Number(amountInput.value || 0);
+
+        if (!name || !Number.isFinite(amount) || amount <= 0) {
+          resultText.textContent = "Vui lòng nhập tên và số tiền hợp lệ.";
+          return;
+        }
+
+        btn.disabled = true;
+        resultText.textContent = "Đang tạo đơn...";
+        try {
+          const response = await fetch("/api/payment-orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, phone, zalo, amount }),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.order_code) {
+            throw new Error(data.error || "Không tạo được đơn.");
+          }
+          codeText.textContent = data.order_code;
+          resultText.textContent = "Đã tạo đơn thành công. Vui lòng chuyển khoản đúng nội dung: " + data.order_code;
+        } catch (error) {
+          resultText.textContent = error.message || "Có lỗi xảy ra, vui lòng thử lại.";
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

@@ -68,11 +68,22 @@ CREATE TABLE IF NOT EXISTS orders (
   product_id INTEGER NOT NULL,
   amount REAL NOT NULL CHECK(amount >= 0),
   status TEXT NOT NULL DEFAULT 'pending',
+  order_code TEXT,
   purchased_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY(customer_id) REFERENCES customers(id),
   FOREIGN KEY(product_id) REFERENCES products(id)
 );
 `);
+
+function ensureColumn(tableName, columnName, columnDef) {
+  const cols = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  if (!cols.some((col) => col.name === columnName)) {
+    db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`);
+  }
+}
+
+ensureColumn("orders", "order_code", "TEXT");
+db.exec("CREATE INDEX IF NOT EXISTS idx_orders_order_code ON orders(order_code)");
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -171,6 +182,7 @@ function getAllOrders() {
         o.product_id,
         o.amount,
         o.status,
+        o.order_code,
         o.purchased_at,
         c.name AS customer_name,
         p.name AS product_name
@@ -196,12 +208,24 @@ function withTransaction(work) {
 
 function findOrderByTransferContent(content, transferAmount) {
   const normalizedContent = String(content || "").toUpperCase();
+  const pendingByCode = db
+    .prepare(
+      "SELECT id, status, amount, order_code FROM orders WHERE status = 'pending' AND order_code IS NOT NULL ORDER BY id DESC"
+    )
+    .all();
+  for (const order of pendingByCode) {
+    const code = String(order.order_code || "").toUpperCase().trim();
+    if (code && normalizedContent.includes(code)) {
+      return order;
+    }
+  }
+
   const fallback = normalizedContent.match(/DH(\d{1,8})/);
   if (fallback) {
     const orderId = Number(fallback[1]);
     if (orderId) {
       return db
-        .prepare("SELECT id, status, amount FROM orders WHERE id = ? AND status = 'pending'")
+        .prepare("SELECT id, status, amount, order_code FROM orders WHERE id = ? AND status = 'pending'")
         .get(orderId);
     }
   }
@@ -215,6 +239,25 @@ function findOrderByTransferContent(content, transferAmount) {
   }
 
   return null;
+}
+
+function generateOrderCode() {
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.floor(Math.random() * 900 + 100);
+  return `DH${timestamp}${random}`;
+}
+
+function ensureDefaultProductId() {
+  const existing = db
+    .prepare("SELECT id FROM products ORDER BY id ASC LIMIT 1")
+    .get();
+  if (existing) return existing.id;
+  const result = db
+    .prepare(
+      "INSERT INTO products(name, price, description, stock_quantity) VALUES (?, ?, ?, ?)"
+    )
+    .run("Thanh toan hoc bong", 1000, "San pham mac dinh cho thanh toan online", 999999);
+  return Number(result.lastInsertRowid);
 }
 
 async function handleApi(req, res, url) {
@@ -304,6 +347,7 @@ async function handleApi(req, res, url) {
       const productId = Number(body.product_id);
       const amount = Number(body.amount);
       const status = (body.status || "pending").trim();
+      const orderCode = String(body.order_code || "").trim() || generateOrderCode();
       if (!customerId || !productId || !Number.isFinite(amount) || amount < 0) {
         return sendJson(res, 400, { error: "Dữ liệu đơn hàng không hợp lệ" });
       }
@@ -316,13 +360,13 @@ async function handleApi(req, res, url) {
         if (product.stock_quantity <= 0) throw new Error("Sản phẩm đã hết hàng");
 
         db.prepare(
-          "INSERT INTO orders(customer_id, product_id, amount, status, purchased_at) VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')))"
-        ).run(customerId, productId, amount, status, body.purchased_at || null);
+          "INSERT INTO orders(customer_id, product_id, amount, status, order_code, purchased_at) VALUES (?, ?, ?, ?, ?, COALESCE(?, datetime('now')))"
+        ).run(customerId, productId, amount, status, orderCode, body.purchased_at || null);
 
         db.prepare("UPDATE products SET stock_quantity = stock_quantity - 1 WHERE id = ?").run(productId);
       });
 
-      return sendJson(res, 201, { ok: true });
+      return sendJson(res, 201, { ok: true, order_code: orderCode });
     }
 
     if (req.method === "PUT" && url.pathname.startsWith("/api/orders/")) {
@@ -332,12 +376,13 @@ async function handleApi(req, res, url) {
       const productId = Number(body.product_id);
       const amount = Number(body.amount);
       const status = (body.status || "pending").trim();
+      const orderCode = String(body.order_code || "").trim();
       if (!id || !customerId || !productId || !Number.isFinite(amount) || amount < 0) {
         return sendJson(res, 400, { error: "Dữ liệu cập nhật đơn hàng không hợp lệ" });
       }
       db.prepare(
-        "UPDATE orders SET customer_id = ?, product_id = ?, amount = ?, status = ?, purchased_at = COALESCE(?, purchased_at) WHERE id = ?"
-      ).run(customerId, productId, amount, status, body.purchased_at || null, id);
+        "UPDATE orders SET customer_id = ?, product_id = ?, amount = ?, status = ?, order_code = COALESCE(NULLIF(?, ''), order_code), purchased_at = COALESCE(?, purchased_at) WHERE id = ?"
+      ).run(customerId, productId, amount, status, orderCode, body.purchased_at || null, id);
       return sendJson(res, 200, { ok: true });
     }
 
@@ -347,13 +392,46 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, { ok: true });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/payment-orders") {
+      const body = await readJsonBody(req);
+      const name = String(body.name || "").trim();
+      const phone = String(body.phone || "").trim();
+      const zalo = String(body.zalo || "").trim();
+      const amount = Number(body.amount || 0);
+      if (!name || !Number.isFinite(amount) || amount <= 0) {
+        return sendJson(res, 400, { error: "Vui long nhap ten va so tien hop le." });
+      }
+
+      const orderCode = generateOrderCode();
+      const result = withTransaction(() => {
+        const customerInsert = db
+          .prepare(
+            "INSERT INTO customers(name, phone, zalo, registered_at) VALUES (?, ?, ?, datetime('now'))"
+          )
+          .run(name, phone, zalo);
+        const customerId = Number(customerInsert.lastInsertRowid);
+        const productId = ensureDefaultProductId();
+
+        const orderInsert = db
+          .prepare(
+            "INSERT INTO orders(customer_id, product_id, amount, status, order_code, purchased_at) VALUES (?, ?, ?, 'pending', ?, datetime('now'))"
+          )
+          .run(customerId, productId, amount, orderCode);
+
+        db.prepare("UPDATE products SET stock_quantity = stock_quantity - 1 WHERE id = ?").run(productId);
+        return Number(orderInsert.lastInsertRowid);
+      });
+
+      return sendJson(res, 201, { success: true, order_id: result, order_code: orderCode });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/sepay-webhook") {
       const { raw, json: payload } = await readJsonBodyWithRaw(req);
       void raw;
 
       const pendingOrders = db
         .prepare(
-          "SELECT id, customer_id, product_id, amount, status, purchased_at FROM orders WHERE status = 'pending' ORDER BY id DESC"
+          "SELECT id, customer_id, product_id, amount, status, order_code, purchased_at FROM orders WHERE status = 'pending' ORDER BY id DESC"
         )
         .all();
       console.log("[SEPAY WEBHOOK] raw body:", raw);
