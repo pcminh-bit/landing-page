@@ -6,6 +6,7 @@ const { DatabaseSync } = require("node:sqlite");
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
+const PUBLIC_DIR = path.join(ROOT, "public");
 const DB_PATH = path.join(ROOT, "brain.db");
 const CURSOR_ASSETS_DIR =
   "C:/Users/ASUS/.cursor/projects/g-My-Drive-AI-Challenge-Day-2-landing-page/assets";
@@ -85,7 +86,8 @@ function serveStaticFile(res, filePath) {
   const normalized = path.normalize(filePath);
   const isInProject = normalized.startsWith(path.normalize(ROOT));
   const isInCursorAssets = normalized.startsWith(path.normalize(CURSOR_ASSETS_DIR));
-  if (!isInProject && !isInCursorAssets) {
+  const isInPublic = normalized.startsWith(path.normalize(PUBLIC_DIR));
+  if (!isInProject && !isInCursorAssets && !isInPublic) {
     sendJson(res, 403, { error: "Forbidden" });
     return;
   }
@@ -313,7 +315,11 @@ async function handleRequest(req, res) {
     return serveStaticFile(res, path.join(ROOT, "index.html"));
   }
 
-  return serveStaticFile(res, path.join(ROOT, requested));
+  const rootPath = path.join(ROOT, requested);
+  if (fs.existsSync(rootPath)) {
+    return serveStaticFile(res, rootPath);
+  }
+  return serveStaticFile(res, path.join(PUBLIC_DIR, requested));
 }
 
 module.exports = handleRequest;
