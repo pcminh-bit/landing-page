@@ -351,6 +351,15 @@ async function handleApi(req, res, url) {
       const { raw, json: payload } = await readJsonBodyWithRaw(req);
       void raw;
 
+      const pendingOrders = db
+        .prepare(
+          "SELECT id, customer_id, product_id, amount, status, purchased_at FROM orders WHERE status = 'pending' ORDER BY id DESC"
+        )
+        .all();
+      console.log("[SEPAY WEBHOOK] raw body:", raw);
+      console.log("[SEPAY WEBHOOK] parsed payload:", payload);
+      console.log("[SEPAY WEBHOOK] pending orders:", pendingOrders);
+
       const transferType = String(payload.transferType || "").toLowerCase();
       const transferAmount = Number(payload.transferAmount || 0);
       const content = String(payload.content || payload.description || "");
