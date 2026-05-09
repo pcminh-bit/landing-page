@@ -300,6 +300,10 @@ async function handleRequest(req, res) {
     return serveStaticFile(res, path.join(ROOT, "admin.html"));
   }
 
+  if (url.pathname === "/payment") {
+    return serveStaticFile(res, path.join(ROOT, "payment.html"));
+  }
+
   if (url.pathname === "/" || url.pathname === "/index.html") {
     return serveStaticFile(res, path.join(ROOT, "index.html"));
   }

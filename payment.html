@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thanh toán - SePay</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: "Montserrat", Arial, sans-serif;
+      background: #f5f6fa;
+      color: #111827;
+    }
+    .wrap {
+      max-width: 620px;
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(17, 24, 39, 0.06);
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+    }
+    .subtitle {
+      margin: 0 0 18px;
+      color: #4b5563;
+    }
+    .qr {
+      width: 320px;
+      max-width: 100%;
+      height: auto;
+      border-radius: 12px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+    }
+    .note {
+      margin-top: 16px;
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .code {
+      color: #e50913;
+      font-weight: 700;
+    }
+    .hint {
+      margin-top: 12px;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .back {
+      margin-top: 20px;
+      display: inline-block;
+      text-decoration: none;
+      color: #fff;
+      background: #111827;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Thanh toán qua SePay</h1>
+      <p class="subtitle">Quét mã QR để chuyển khoản nhanh.</p>
+      <img
+        class="qr"
+        src="/_cursor_assets/c__Users_ASUS_AppData_Roaming_Cursor_User_workspaceStorage_a8562e6a60f067f1047cf64e017128bc_images_QR_Code-505a0cdb-32b8-4e83-8bc4-feab19a9194a.png"
+        alt="QR thanh toán SePay"
+      />
+      <p class="note">Nội dung chuyển khoản: <span class="code">DH001</span></p>
+      <p class="hint">Sau khi chuyển khoản xong, vui lòng chụp màn hình giao dịch và gửi qua Zalo để được xác nhận nhanh.</p>
+      <a class="back" href="/">Quay về trang chủ</a>
+    </div>
+  </div>
+</body>
+</html>
