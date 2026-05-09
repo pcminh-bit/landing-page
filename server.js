@@ -1,8 +1,27 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
+const crypto = require("node:crypto");
 const { URL } = require("node:url");
 const { DatabaseSync } = require("node:sqlite");
+
+function loadEnvFile(envPath) {
+  if (!fs.existsSync(envPath)) return;
+  const lines = fs.readFileSync(envPath, "utf-8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const idx = trimmed.indexOf("=");
+    if (idx <= 0) continue;
+    const key = trimmed.slice(0, idx).trim();
+    const value = trimmed.slice(idx + 1).trim();
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+}
+
+loadEnvFile(path.join(__dirname, ".env"));
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -73,7 +92,7 @@ function sendJson(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
-function readJsonBody(req) {
+function readRawBody(req) {
   return new Promise((resolve, reject) => {
     let data = "";
     req.on("data", (chunk) => {
@@ -83,15 +102,44 @@ function readJsonBody(req) {
       }
     });
     req.on("end", () => {
-      if (!data.trim()) return resolve({});
-      try {
-        resolve(JSON.parse(data));
-      } catch {
-        reject(new Error("Invalid JSON payload"));
-      }
+      resolve(data);
     });
     req.on("error", reject);
   });
+}
+
+async function readJsonBody(req) {
+  const raw = await readRawBody(req);
+  if (!raw.trim()) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error("Invalid JSON payload");
+  }
+}
+
+async function readJsonBodyWithRaw(req) {
+  const raw = await readRawBody(req);
+  if (!raw.trim()) return { raw, json: {} };
+  try {
+    return { raw, json: JSON.parse(raw) };
+  } catch {
+    throw new Error("Invalid JSON payload");
+  }
+}
+
+function verifySepaySignature(rawBody, signatureHeader) {
+  const secret = process.env.SEPAY_WEBHOOK_SECRET;
+  if (!secret) return false;
+  if (!signatureHeader) return false;
+
+  const provided = String(signatureHeader).trim().replace(/^sha256=/i, "").toLowerCase();
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const providedBuffer = Buffer.from(provided, "utf8");
+  const expectedBuffer = Buffer.from(expected, "utf8");
+
+  if (providedBuffer.length !== expectedBuffer.length) return false;
+  return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
 }
 
 function serveStaticFile(res, filePath) {
@@ -314,7 +362,13 @@ async function handleApi(req, res, url) {
     }
 
     if (req.method === "POST" && url.pathname === "/api/sepay-webhook") {
-      const payload = await readJsonBody(req);
+      const { raw, json: payload } = await readJsonBodyWithRaw(req);
+      const signatureHeader = req.headers["x-sepay-signature"];
+      const isValidSignature = verifySepaySignature(raw, signatureHeader);
+      if (!isValidSignature) {
+        return sendJson(res, 401, { success: false, error: "Invalid webhook signature" });
+      }
+
       const transferType = String(payload.transferType || "").toLowerCase();
       const transferAmount = Number(payload.transferAmount || 0);
       const content = String(payload.content || payload.description || "");
