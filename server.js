@@ -392,6 +392,23 @@ async function handleApi(req, res, url) {
       return sendJson(res, 201, { ok: true, order_code: orderCode });
     }
 
+    const orderConfirmMatch = url.pathname.match(/^\/api\/orders\/(\d+)\/confirm\/?$/);
+    if (req.method === "PUT" && orderConfirmMatch) {
+      const id = Number(orderConfirmMatch[1]);
+      if (!id) {
+        return sendJson(res, 400, { error: "ID đơn hàng không hợp lệ" });
+      }
+      const info = db
+        .prepare("UPDATE orders SET status = 'success' WHERE id = ? AND status = 'pending'")
+        .run(id);
+      if (!info.changes) {
+        return sendJson(res, 400, {
+          error: "Không cập nhật được: đơn không tồn tại hoặc không còn trạng thái chờ thanh toán.",
+        });
+      }
+      return sendJson(res, 200, { ok: true, order_id: id, status: "success" });
+    }
+
     if (req.method === "PUT" && url.pathname.startsWith("/api/orders/")) {
       const id = Number(url.pathname.split("/").pop());
       const body = await readJsonBody(req);
@@ -413,23 +430,6 @@ async function handleApi(req, res, url) {
       const id = Number(url.pathname.split("/").pop());
       db.prepare("DELETE FROM orders WHERE id = ?").run(id);
       return sendJson(res, 200, { ok: true });
-    }
-
-    const confirmMatch = url.pathname.match(/^\/api\/orders\/(\d+)\/confirm-payment\/?$/);
-    if (req.method === "POST" && confirmMatch) {
-      const id = Number(confirmMatch[1]);
-      if (!id) {
-        return sendJson(res, 400, { error: "ID đơn hàng không hợp lệ" });
-      }
-      const info = db
-        .prepare("UPDATE orders SET status = 'success' WHERE id = ? AND status = 'pending'")
-        .run(id);
-      if (!info.changes) {
-        return sendJson(res, 400, {
-          error: "Không cập nhật được: đơn không tồn tại hoặc không còn trạng thái chờ thanh toán.",
-        });
-      }
-      return sendJson(res, 200, { ok: true, order_id: id, status: "success" });
     }
 
     if (req.method === "GET" && url.pathname === "/api/payment-orders/status") {

@@ -258,6 +258,28 @@ async function handleApiPostgres(req, res, url, deps) {
       return sendJson(res, 201, { ok: true, order_code: orderCode });
     }
 
+    const orderConfirmMatch = url.pathname.match(/^\/api\/orders\/(\d+)\/confirm\/?$/);
+    if (req.method === "PUT" && orderConfirmMatch) {
+      const id = Number(orderConfirmMatch[1]);
+      if (!id) {
+        return sendJson(res, 400, { error: "ID đơn hàng không hợp lệ" });
+      }
+      let updated = false;
+      await mutate((snap) => {
+        const o = snap.orders.find((x) => sameId(x.id, id));
+        if (o && o.status === "pending") {
+          o.status = "success";
+          updated = true;
+        }
+      });
+      if (!updated) {
+        return sendJson(res, 400, {
+          error: "Không cập nhật được: đơn không tồn tại hoặc không còn trạng thái chờ thanh toán.",
+        });
+      }
+      return sendJson(res, 200, { ok: true, order_id: id, status: "success" });
+    }
+
     if (req.method === "PUT" && url.pathname.startsWith("/api/orders/")) {
       const id = Number(url.pathname.split("/").pop());
       const body = await readJsonBody(req);
@@ -288,28 +310,6 @@ async function handleApiPostgres(req, res, url, deps) {
         snap.orders = snap.orders.filter((o) => o.id !== id);
       });
       return sendJson(res, 200, { ok: true });
-    }
-
-    const confirmMatch = url.pathname.match(/^\/api\/orders\/(\d+)\/confirm-payment\/?$/);
-    if (req.method === "POST" && confirmMatch) {
-      const id = Number(confirmMatch[1]);
-      if (!id) {
-        return sendJson(res, 400, { error: "ID đơn hàng không hợp lệ" });
-      }
-      let updated = false;
-      await mutate((snap) => {
-        const o = snap.orders.find((x) => sameId(x.id, id));
-        if (o && o.status === "pending") {
-          o.status = "success";
-          updated = true;
-        }
-      });
-      if (!updated) {
-        return sendJson(res, 400, {
-          error: "Không cập nhật được: đơn không tồn tại hoặc không còn trạng thái chờ thanh toán.",
-        });
-      }
-      return sendJson(res, 200, { ok: true, order_id: id, status: "success" });
     }
 
     if (req.method === "GET" && url.pathname === "/api/payment-orders/status") {

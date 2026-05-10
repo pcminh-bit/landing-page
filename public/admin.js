@@ -386,7 +386,7 @@
 
   async function confirmPayment(id) {
     if (!confirm("Xác nhận đã nhận tiền cho đơn này? Trạng thái sẽ chuyển sang success.")) return;
-    await api(`/api/orders/${id}/confirm-payment`, { method: "POST", body: "{}" });
+    await api(`/api/orders/${id}/confirm`, { method: "PUT", body: "{}" });
     await loadAll();
   }
 
