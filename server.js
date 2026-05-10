@@ -25,6 +25,11 @@ loadEnvFile(path.join(__dirname, ".env"));
 const { usePostgresStore } = require("./pg-store");
 const { handleApiPostgres } = require("./api-postgres");
 const { notifyWaitlistSignup } = require("./resend-mail");
+const {
+  runWaitlistSignupSequence,
+  processDueJobsSqlite,
+  cronEmailSequenceUnauthorized,
+} = require("./email-sequence");
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -95,6 +100,18 @@ function ensureColumn(tableName, columnName, columnDef) {
 ensureColumn("orders", "order_code", "TEXT");
 db.exec("CREATE INDEX IF NOT EXISTS idx_orders_order_code ON orders(order_code)");
 ensureColumn("customers", "email", "TEXT");
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS email_sequence_jobs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  to_email TEXT NOT NULL,
+  to_name TEXT,
+  step INTEGER NOT NULL,
+  send_at TEXT NOT NULL,
+  sent_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_email_seq_pending ON email_sequence_jobs(send_at, sent_at);
+`);
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -279,6 +296,25 @@ function ensureDefaultProductId() {
 
 async function handleApi(req, res, url) {
   try {
+    if (req.method === "GET" && url.pathname === "/api/cron/email-sequence") {
+      const cronChk = cronEmailSequenceUnauthorized(req, url);
+      if (cronChk.reason === "no_secret") {
+        return sendJson(res, 503, { error: "CRON_SECRET chưa cấu hình." });
+      }
+      if (!cronChk.ok) {
+        return sendJson(res, 401, { error: "Unauthorized" });
+      }
+      if (usePostgresStore) {
+        return await handleApiPostgres(req, res, url, {
+          sendJson,
+          readJsonBody,
+          readJsonBodyWithRaw,
+        });
+      }
+      const processed = await processDueJobsSqlite(db);
+      return sendJson(res, 200, { ok: true, processed });
+    }
+
     if (req.method === "GET" && url.pathname === "/api/store-info") {
       return sendJson(res, 200, {
         postgres: Boolean(process.env.DATABASE_URL),
@@ -361,6 +397,9 @@ async function handleApi(req, res, url) {
         body.registered_at || null
       );
       void notifyWaitlistSignup(lead).catch((e) => console.error("[resend]", e));
+      void runWaitlistSignupSequence(lead, { sqlite: db }).catch((e) =>
+        console.error("[email-sequence]", e)
+      );
       return sendJson(res, 201, { ok: true });
     }
 

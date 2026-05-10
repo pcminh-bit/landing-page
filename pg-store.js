@@ -10,7 +10,7 @@ function getSql() {
 }
 
 function emptySnapshot() {
-  return { products: [], customers: [], orders: [] };
+  return { products: [], customers: [], orders: [], email_sequence_jobs: [] };
 }
 
 let schemaPromise = null;
@@ -45,6 +45,7 @@ async function loadSnapshot(sql) {
   if (!Array.isArray(snap.products)) snap.products = [];
   if (!Array.isArray(snap.customers)) snap.customers = [];
   if (!Array.isArray(snap.orders)) snap.orders = [];
+  if (!Array.isArray(snap.email_sequence_jobs)) snap.email_sequence_jobs = [];
   return snap;
 }
 

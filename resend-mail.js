@@ -1,8 +1,22 @@
 /**
- * Resend transactional mail via REST API (no npm package — works on Node 18+ fetch).
- * Docs: https://resend.com/docs/api-reference/emails/send-email
- * Env: RESEND_API_KEY, RESEND_FROM_EMAIL; optional RESEND_TO_EMAIL (admin).
+ * Resend REST API (Node 18+ fetch). Key: RESEND_API_KEY hoặc file resend_config.txt (dòng bắt đầu re_).
  */
+const fs = require("node:fs");
+const path = require("node:path");
+
+function loadResendApiKey() {
+  const env = String(process.env.RESEND_API_KEY || "").trim();
+  if (env) return env;
+  const filePath = path.join(__dirname, "resend_config.txt");
+  if (!fs.existsSync(filePath)) return null;
+  const raw = fs.readFileSync(filePath, "utf-8");
+  const line =
+    raw
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .find((l) => l.startsWith("re_")) || raw.split(/\r?\n/)[0]?.trim();
+  return line && line.startsWith("re_") ? line : null;
+}
 
 function escapeHtml(text) {
   return String(text ?? "")
@@ -47,15 +61,16 @@ async function sendResendEmail(apiKey, payload) {
 }
 
 /**
+ * Email nội bộ cho admin khi có lead — (không phải drip sequence).
  * @param {{ name: string; email?: string; phone?: string; zalo?: string }} lead
  */
 async function notifyWaitlistSignup(lead) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
+  const apiKey = loadResendApiKey();
+  const from = String(process.env.RESEND_FROM_EMAIL || "").trim();
   const adminTo = String(process.env.RESEND_TO_EMAIL || "").trim();
 
   if (!apiKey || !from) {
-    console.warn("[resend] Skip: set RESEND_API_KEY and RESEND_FROM_EMAIL");
+    console.warn("[resend] Skip admin lead: set RESEND_FROM_EMAIL và key (env hoặc resend_config.txt)");
     return;
   }
 
@@ -75,19 +90,7 @@ async function notifyWaitlistSignup(lead) {
 <p><strong>Email:</strong> ${escapeHtml(email) || "(trống)"}</p>
 <p><strong>Số điện thoại:</strong> ${escapeHtml(phone) || "(trống)"}</p>
 <p><strong>Zalo:</strong> ${escapeHtml(zalo) || "—"}</p>
-<p style="margin-top:16px;color:#6b7280;font-size:13px;">Gửi tự động khi có người gửi form waitlist hoặc lead.</p>`,
-      });
-    }
-
-    if (email && isLikelyEmail(email)) {
-      await sendResendEmail(apiKey, {
-        from,
-        to: email,
-        subject: "Đã nhận thông tin đăng ký — hocbong-upgrad.com",
-        html: `
-<p>Chào ${escapeHtml(name)},</p>
-<p>Cảm ơn bạn đã để lại thông tin. Đội ngũ tư vấn sẽ liên hệ sớm qua số điện thoại hoặc email bạn đã cung cấp.</p>
-<p>Trân trọng,<br/>Trần Tuấn Anh — upGrad</p>`,
+<p style="margin-top:16px;color:#6b7280;font-size:13px;">Lead từ form / chatbot.</p>`,
       });
     }
   } catch (e) {
@@ -95,4 +98,10 @@ async function notifyWaitlistSignup(lead) {
   }
 }
 
-module.exports = { notifyWaitlistSignup };
+module.exports = {
+  loadResendApiKey,
+  sendResendEmail,
+  escapeHtml,
+  isLikelyEmail,
+  notifyWaitlistSignup,
+};

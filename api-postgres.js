@@ -7,6 +7,11 @@ const {
   nowSqliteStyle,
 } = require("./pg-store");
 const { notifyWaitlistSignup } = require("./resend-mail");
+const {
+  runWaitlistSignupSequence,
+  processDueJobsPostgres,
+  cronEmailSequenceUnauthorized,
+} = require("./email-sequence");
 
 function sortByIdDesc(rows) {
   return [...rows].sort((a, b) => Number(b.id) - Number(a.id));
@@ -100,6 +105,18 @@ async function handleApiPostgres(req, res, url, deps) {
   }
 
   try {
+    if (req.method === "GET" && url.pathname === "/api/cron/email-sequence") {
+      const cronChk = cronEmailSequenceUnauthorized(req, url);
+      if (cronChk.reason === "no_secret") {
+        return sendJson(res, 503, { error: "CRON_SECRET chưa cấu hình." });
+      }
+      if (!cronChk.ok) {
+        return sendJson(res, 401, { error: "Unauthorized" });
+      }
+      const processed = await processDueJobsPostgres(mutate);
+      return sendJson(res, 200, { ok: true, processed });
+    }
+
     if (req.method === "GET" && url.pathname === "/api/products") {
       const snapshot = await loadSnapshot(sql);
       return sendJson(res, 200, sortByIdDesc(snapshot.products));
@@ -201,6 +218,9 @@ async function handleApiPostgres(req, res, url, deps) {
         });
       });
       void notifyWaitlistSignup(lead).catch((e) => console.error("[resend]", e));
+      void runWaitlistSignupSequence(lead, { postgresMutate: mutate }).catch((e) =>
+        console.error("[email-sequence]", e)
+      );
       return sendJson(res, 201, { ok: true });
     }
 
