@@ -2,7 +2,14 @@
  * Waitlist drip sequence — nội dung theo email_sequence.md (HTML).
  * SQLite: table email_sequence_jobs. Postgres: snapshot.email_sequence_jobs[]
  */
-const { sendResendEmail, loadResendApiKey, isLikelyEmail, escapeHtml } = require("./resend-mail");
+const {
+  sendResendEmail,
+  loadResendApiKey,
+  isLikelyEmail,
+  escapeHtml,
+  describeApiKeyResolution,
+  logResendKeyStatus,
+} = require("./resend-mail");
 
 const { nextId } = require("./pg-store");
 
@@ -87,12 +94,20 @@ async function sendSequenceStep(apiKey, from, toEmail, name, step) {
     `<div style="font-family:system-ui,sans-serif;line-height:1.6;color:#111827;font-size:16px;">` +
     htmlParts.join("") +
     `</div>`;
+  console.log("[email-sequence:sendStep] bắt đầu", {
+    step,
+    to: toEmail,
+    from,
+    subjectSlice: subject.slice(0, 60),
+  });
   await sendResendEmail(apiKey, {
     from,
     to: toEmail,
     subject,
     html,
+    _logLabel: `waitlist-sequence-step-${step}`,
   });
+  console.log("[email-sequence:sendStep] xong step", step, "→", toEmail);
 }
 
 /**
@@ -147,23 +162,49 @@ function enqueueSequencePostgres(snapshot, email, name) {
 async function runWaitlistSignupSequence(lead, storage = {}) {
   const email = String(lead.email || "").trim();
   const name = String(lead.name || "").trim();
-  if (!isLikelyEmail(email)) return;
 
-  const apiKey = loadResendApiKey();
+  console.log("[email-sequence] runWaitlistSignupSequence vào", {
+    emailPresent: Boolean(email),
+    emailValid: isLikelyEmail(email),
+    nameLen: name.length,
+    plusTestLocal: email ? isSequenceTestEmail(email) : false,
+    VERCEL: Boolean(process.env.VERCEL),
+    hasDATABASE_URL: Boolean(process.env.DATABASE_URL),
+  });
+
+  if (!isLikelyEmail(email)) {
+    console.warn("[email-sequence] Bỏ qua chuỗi email — email không hợp lệ hoặc trống.");
+    return;
+  }
+
+  logResendKeyStatus("before sequence");
+  const keyMeta = describeApiKeyResolution();
+  const apiKey = keyMeta.key;
   const from = String(process.env.RESEND_FROM_EMAIL || "").trim();
+
+  console.log("[email-sequence] điều kiện gửi", {
+    apiKeySource: keyMeta.source,
+    apiKeyMasked: keyMeta.detail,
+    RESEND_FROM_EMAIL: from || "(thiếu)",
+  });
+
   if (!apiKey || !from) {
-    console.warn("[email-sequence] Missing RESEND_API_KEY (hoặc resend_config.txt) hoặc RESEND_FROM_EMAIL");
+    console.warn(
+      "[email-sequence] STOP — không gửi được: thiếu RESEND_API_KEY (env không có và/hoặc file không có key) HOẶC thiếu RESEND_FROM_EMAIL. Trên Vercel: Dashboard → Env → RESEND_API_KEY + RESEND_FROM_EMAIL."
+    );
     return;
   }
 
   try {
+    const testMode = isSequenceTestEmail(email);
+    console.log("[email-sequence] testMode (+test trong local-part):", testMode);
+
     await sendSequenceStep(apiKey, from, email, name, 1);
 
-    const testMode = isSequenceTestEmail(email);
     if (testMode) {
       await sendSequenceStep(apiKey, from, email, name, 2);
       await sendSequenceStep(apiKey, from, email, name, 3);
-      console.log("[email-sequence] Test mode (+test): sent steps 1–3 immediately →", email);
+      console.log("[email-sequence] Test mode (+test): đã gửi xong 3 bước →", email);
       return;
     }
 
@@ -175,7 +216,10 @@ async function runWaitlistSignupSequence(lead, storage = {}) {
       });
     }
   } catch (e) {
-    console.error("[email-sequence]", e.message || e);
+    console.error("[email-sequence] runWaitlistSignupSequence lỗi:", e?.message || e);
+    if (process.env.RESEND_MAIL_LOG === "1" || process.env.RESEND_MAIL_LOG === "true") {
+      console.error(e?.stack || e);
+    }
   }
 }
 
