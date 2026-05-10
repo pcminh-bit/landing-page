@@ -215,11 +215,29 @@ function withTransaction(work) {
   }
 }
 
-function findOrderByTransferContent(content, transferAmount) {
-  const normalizedContent = String(content || "").toUpperCase();
+function extractTransferMemoFromPayload(payload) {
+  if (!payload || typeof payload !== "object") return "";
+  const parts = [
+    payload.content,
+    payload.description,
+    payload.note,
+    payload.transferDescription,
+    payload.message,
+    payload.referenceCode,
+  ];
+  return parts
+    .filter((p) => p != null && String(p).trim() !== "")
+    .map((p) => String(p))
+    .join(" ")
+    .toUpperCase();
+}
+
+/** Chỉ khớp đơn pending khi toàn bộ mã đơn (order_code) xuất hiện trong nội dung giao dịch. */
+function findOrderByTransferContent(memoUpper) {
+  const normalizedContent = String(memoUpper || "").toUpperCase();
   const pendingByCode = db
     .prepare(
-      "SELECT id, status, amount, order_code FROM orders WHERE status = 'pending' AND order_code IS NOT NULL ORDER BY id DESC"
+      "SELECT id, status, amount, order_code FROM orders WHERE status = 'pending' AND order_code IS NOT NULL AND TRIM(order_code) != '' ORDER BY id DESC"
     )
     .all();
   for (const order of pendingByCode) {
@@ -228,25 +246,6 @@ function findOrderByTransferContent(content, transferAmount) {
       return order;
     }
   }
-
-  const fallback = normalizedContent.match(/DH(\d{1,8})/);
-  if (fallback) {
-    const orderId = Number(fallback[1]);
-    if (orderId) {
-      return db
-        .prepare("SELECT id, status, amount, order_code FROM orders WHERE id = ? AND status = 'pending'")
-        .get(orderId);
-    }
-  }
-
-  if (Number.isFinite(transferAmount) && transferAmount > 0) {
-    return db
-      .prepare(
-        "SELECT id, status, amount FROM orders WHERE status = 'pending' AND CAST(amount AS INTEGER) = CAST(? AS INTEGER) ORDER BY id DESC LIMIT 1"
-      )
-      .get(transferAmount);
-  }
-
   return null;
 }
 
@@ -416,6 +415,44 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, { ok: true });
     }
 
+    const confirmMatch = url.pathname.match(/^\/api\/orders\/(\d+)\/confirm-payment\/?$/);
+    if (req.method === "POST" && confirmMatch) {
+      const id = Number(confirmMatch[1]);
+      if (!id) {
+        return sendJson(res, 400, { error: "ID đơn hàng không hợp lệ" });
+      }
+      const info = db
+        .prepare("UPDATE orders SET status = 'success' WHERE id = ? AND status = 'pending'")
+        .run(id);
+      if (!info.changes) {
+        return sendJson(res, 400, {
+          error: "Không cập nhật được: đơn không tồn tại hoặc không còn trạng thái chờ thanh toán.",
+        });
+      }
+      return sendJson(res, 200, { ok: true, order_id: id, status: "success" });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/payment-orders/status") {
+      const code = String(url.searchParams.get("order_code") || "").trim().toUpperCase();
+      if (!code) {
+        return sendJson(res, 400, { error: "Thiếu order_code" });
+      }
+      const row = db
+        .prepare(
+          "SELECT id, status, order_code, amount FROM orders WHERE UPPER(TRIM(order_code)) = ? LIMIT 1"
+        )
+        .get(code);
+      if (!row) {
+        return sendJson(res, 404, { error: "Không tìm thấy đơn với mã này." });
+      }
+      return sendJson(res, 200, {
+        order_id: row.id,
+        order_code: row.order_code,
+        status: row.status,
+        amount: row.amount,
+      });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/payment-orders") {
       const body = await readJsonBody(req);
       const name = String(body.name || "").trim();
@@ -442,7 +479,6 @@ async function handleApi(req, res, url) {
           )
           .run(customerId, productId, amount, orderCode);
 
-        db.prepare("UPDATE products SET stock_quantity = stock_quantity - 1 WHERE id = ?").run(productId);
         return Number(orderInsert.lastInsertRowid);
       });
 
@@ -464,13 +500,13 @@ async function handleApi(req, res, url) {
 
       const transferType = String(payload.transferType || "").toLowerCase();
       const transferAmount = Number(payload.transferAmount || 0);
-      const content = String(payload.content || payload.description || "");
+      const memo = extractTransferMemoFromPayload(payload);
 
       if (transferType !== "in" || !Number.isFinite(transferAmount) || transferAmount <= 0) {
         return sendJson(res, 200, { success: true, ignored: true });
       }
 
-      const matchedOrder = findOrderByTransferContent(content, transferAmount);
+      const matchedOrder = findOrderByTransferContent(memo);
       if (!matchedOrder) {
         return sendJson(res, 200, { success: true, matched: false });
       }

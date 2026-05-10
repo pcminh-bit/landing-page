@@ -49,6 +49,28 @@
     .code {
       color: #e50913;
       font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .code-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .copy-btn {
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #111827;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .copy-btn:hover {
+      background: #f3f4f6;
     }
     .hint {
       margin-top: 12px;
@@ -77,16 +99,21 @@
       font-family: inherit;
       font-size: 14px;
     }
-    .form-wrap button {
+    .form-wrap button[type="submit"] {
       margin-top: 10px;
       border: 0;
       background: #111827;
       color: #fff;
       border-radius: 8px;
-      padding: 10px 12px;
+      padding: 12px 12px;
       font-weight: 600;
       cursor: pointer;
       width: 100%;
+      font-size: 15px;
+    }
+    .form-wrap button[type="submit"]:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
     }
     .form-note {
       margin-top: 8px;
@@ -103,72 +130,191 @@
       padding: 10px 14px;
       font-weight: 600;
     }
+    #postSubmitArea {
+      display: none;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+    }
+    #postSubmitArea.visible {
+      display: block;
+    }
+    .poll-status {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #2563eb;
+      font-weight: 500;
+    }
+    .thank-you {
+      display: none;
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #ecfdf5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+      font-weight: 600;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+    .thank-you.visible {
+      display: block;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>Thanh toán qua SePay</h1>
-      <p class="subtitle">Quét mã QR để chuyển khoản nhanh.</p>
-      <img
-        class="qr"
-        src="/assets/qr-sepay.png"
-        alt="QR thanh toán SePay"
-      />
-      <p class="note">Nội dung chuyển khoản: <span class="code" id="orderCodeText">DH001</span></p>
-      <div class="form-wrap">
+      <p class="subtitle">Điền thông tin và gửi để tạo mã đơn. Sau đó quét QR và chuyển khoản đúng nội dung mã đơn.</p>
+
+      <form id="paymentForm" class="form-wrap">
         <div class="form-grid">
-          <input id="customerName" placeholder="Họ và tên" />
-          <input id="customerPhone" placeholder="Số điện thoại" />
-          <input id="customerZalo" placeholder="Zalo (không bắt buộc)" />
-          <input id="orderAmount" type="number" min="1000" step="1000" value="1000" placeholder="Số tiền" />
+          <input id="customerName" name="name" required placeholder="Họ và tên *" autocomplete="name" />
+          <input id="customerPhone" name="phone" required placeholder="Số điện thoại *" inputmode="tel" autocomplete="tel" />
+          <input id="customerZalo" name="zalo" placeholder="Zalo (không bắt buộc)" />
+          <input id="orderAmount" name="amount" type="number" min="1000" step="1000" value="1000" required placeholder="Số tiền (VNĐ) *" />
         </div>
-        <button id="createOrderBtn" type="button">Tạo đơn thanh toán</button>
-        <div class="form-note" id="orderResultText">Bấm "Tạo đơn thanh toán" để tạo mã đơn mới trước khi chuyển khoản.</div>
+        <button type="submit" id="submitBtn">Gửi và tạo đơn thanh toán</button>
+        <div class="form-note" id="orderResultText">Đơn được tạo với trạng thái chờ thanh toán (pending). Hệ thống tự cập nhật khi SePay xác nhận.</div>
+      </form>
+
+      <div id="postSubmitArea">
+        <img
+          class="qr"
+          src="/assets/qr-sepay.png"
+          alt="QR thanh toán SePay"
+        />
+        <p class="note">Nội dung chuyển khoản (bắt buộc trùng khớp):</p>
+        <div class="code-row">
+          <span class="code" id="orderCodeText">—</span>
+          <button type="button" class="copy-btn" id="copyCodeBtn" hidden>Sao chép mã</button>
+        </div>
+        <p class="poll-status" id="pollStatus" hidden></p>
+        <div class="thank-you" id="thankYou" role="status">
+          Cảm ơn bạn! Thanh toán đã được xác nhận. Chúng tôi sẽ liên hệ theo số điện thoại bạn đã cung cấp.
+        </div>
+        <p class="hint">Giữ trang mở sau khi chuyển khoản — trạng thái được kiểm tra tự động vài giây một lần.</p>
       </div>
-      <p class="hint">Sau khi chuyển khoản xong, vui lòng chụp màn hình giao dịch và gửi qua Zalo để được xác nhận nhanh.</p>
+
       <a class="back" href="/">Quay về trang chủ</a>
     </div>
   </div>
   <script>
     (function () {
-      const btn = document.getElementById("createOrderBtn");
+      const form = document.getElementById("paymentForm");
+      const submitBtn = document.getElementById("submitBtn");
       const nameInput = document.getElementById("customerName");
       const phoneInput = document.getElementById("customerPhone");
       const zaloInput = document.getElementById("customerZalo");
       const amountInput = document.getElementById("orderAmount");
       const codeText = document.getElementById("orderCodeText");
       const resultText = document.getElementById("orderResultText");
+      const postArea = document.getElementById("postSubmitArea");
+      const pollStatus = document.getElementById("pollStatus");
+      const thankYou = document.getElementById("thankYou");
+      const copyBtn = document.getElementById("copyCodeBtn");
 
-      btn.addEventListener("click", async () => {
+      let pollTimer = null;
+      let activeOrderCode = null;
+
+      function stopPolling() {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      }
+
+      function startPolling(orderCode) {
+        stopPolling();
+        activeOrderCode = orderCode;
+        pollStatus.hidden = false;
+        pollStatus.textContent = "Đang chờ xác nhận chuyển khoản…";
+
+        const tick = async () => {
+          if (!activeOrderCode) return;
+          try {
+            const q = encodeURIComponent(activeOrderCode);
+            const response = await fetch("/api/payment-orders/status?order_code=" + q);
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) return;
+            if (data.status === "success") {
+              stopPolling();
+              pollStatus.textContent = "Thanh toán đã được xác nhận.";
+              thankYou.classList.add("visible");
+              submitBtn.disabled = false;
+              submitBtn.textContent = "Gửi và tạo đơn thanh toán mới";
+            }
+          } catch (_) {
+            /* bỏ qua lỗi mạng tạm thời */
+          }
+        };
+
+        pollTimer = setInterval(tick, 2500);
+        tick();
+      }
+
+      copyBtn.addEventListener("click", async () => {
+        const t = codeText.textContent.trim();
+        if (!t || t === "—") return;
+        try {
+          await navigator.clipboard.writeText(t);
+          copyBtn.textContent = "Đã chép";
+          setTimeout(() => { copyBtn.textContent = "Sao chép mã"; }, 2000);
+        } catch (_) {
+          copyBtn.textContent = "Không chép được";
+        }
+      });
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        thankYou.classList.remove("visible");
+        stopPolling();
+        pollStatus.hidden = true;
+
         const name = nameInput.value.trim();
         const phone = phoneInput.value.trim();
         const zalo = zaloInput.value.trim();
         const amount = Number(amountInput.value || 0);
 
-        if (!name || !Number.isFinite(amount) || amount <= 0) {
-          resultText.textContent = "Vui lòng nhập tên và số tiền hợp lệ.";
+        if (!name || !phone) {
+          resultText.textContent = "Vui lòng nhập họ tên và số điện thoại.";
+          return;
+        }
+        if (!Number.isFinite(amount) || amount <= 0) {
+          resultText.textContent = "Vui lòng nhập số tiền hợp lệ.";
           return;
         }
 
-        btn.disabled = true;
-        resultText.textContent = "Đang tạo đơn...";
+        let orderCreated = false;
+        submitBtn.disabled = true;
+        resultText.textContent = "Đang tạo đơn…";
         try {
           const response = await fetch("/api/payment-orders", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name, phone, zalo, amount }),
           });
-          const data = await response.json();
-          if (!response.ok || !data.order_code) {
+          const data = await response.json().catch(() => ({}));
+          const code = data.order_code;
+          if (!response.ok || !code) {
             throw new Error(data.error || "Không tạo được đơn.");
           }
-          codeText.textContent = data.order_code;
-          resultText.textContent = "Đã tạo đơn thành công. Vui lòng chuyển khoản đúng nội dung: " + data.order_code;
+          orderCreated = true;
+          codeText.textContent = code;
+          copyBtn.hidden = false;
+          postArea.classList.add("visible");
+          resultText.textContent =
+            "Đơn đã tạo (pending). Chuyển khoản đúng nội dung: " + code + " — số tiền: " +
+            amount.toLocaleString("vi-VN") + " VNĐ.";
+          submitBtn.textContent = "Đang chờ xác nhận chuyển khoản…";
+          startPolling(code);
         } catch (error) {
           resultText.textContent = error.message || "Có lỗi xảy ra, vui lòng thử lại.";
         } finally {
-          btn.disabled = false;
+          if (!orderCreated) {
+            submitBtn.disabled = false;
+          }
         }
       });
     })();

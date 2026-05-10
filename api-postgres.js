@@ -31,26 +31,35 @@ function enrichOrders(snapshot) {
   }));
 }
 
-function findOrderByTransfer(snapshot, content, transferAmount) {
-  const normalizedContent = String(content || "").toUpperCase();
-  const pending = sortByIdDesc(snapshot.orders.filter((o) => o.status === "pending"));
+function extractTransferMemoFromPayload(payload) {
+  if (!payload || typeof payload !== "object") return "";
+  const parts = [
+    payload.content,
+    payload.description,
+    payload.note,
+    payload.transferDescription,
+    payload.message,
+    payload.referenceCode,
+  ];
+  return parts
+    .filter((p) => p != null && String(p).trim() !== "")
+    .map((p) => String(p))
+    .join(" ")
+    .toUpperCase();
+}
+
+/** Chỉ khớp khi đủ chuỗi order_code có trong nội dung chuyển khoản. */
+function findOrderByTransfer(snapshot, memoUpper) {
+  const normalizedContent = String(memoUpper || "").toUpperCase();
+  const pending = sortByIdDesc(
+    snapshot.orders.filter(
+      (o) => o.status === "pending" && String(o.order_code || "").trim() !== ""
+    )
+  );
 
   for (const order of pending) {
     const code = String(order.order_code || "").toUpperCase().trim();
     if (code && normalizedContent.includes(code)) return order;
-  }
-
-  const matchId = normalizedContent.match(/DH(\d{1,8})/);
-  if (matchId) {
-    const orderId = Number(matchId[1]);
-    const found = pending.find((o) => sameId(o.id, orderId));
-    if (found) return found;
-  }
-
-  if (Number.isFinite(transferAmount) && transferAmount > 0) {
-    const amt = Math.floor(Number(transferAmount));
-    const found = pending.find((o) => Math.floor(Number(o.amount)) === amt);
-    if (found) return found;
   }
 
   return null;
@@ -281,6 +290,48 @@ async function handleApiPostgres(req, res, url, deps) {
       return sendJson(res, 200, { ok: true });
     }
 
+    const confirmMatch = url.pathname.match(/^\/api\/orders\/(\d+)\/confirm-payment\/?$/);
+    if (req.method === "POST" && confirmMatch) {
+      const id = Number(confirmMatch[1]);
+      if (!id) {
+        return sendJson(res, 400, { error: "ID đơn hàng không hợp lệ" });
+      }
+      let updated = false;
+      await mutate((snap) => {
+        const o = snap.orders.find((x) => sameId(x.id, id));
+        if (o && o.status === "pending") {
+          o.status = "success";
+          updated = true;
+        }
+      });
+      if (!updated) {
+        return sendJson(res, 400, {
+          error: "Không cập nhật được: đơn không tồn tại hoặc không còn trạng thái chờ thanh toán.",
+        });
+      }
+      return sendJson(res, 200, { ok: true, order_id: id, status: "success" });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/payment-orders/status") {
+      const code = String(url.searchParams.get("order_code") || "").trim().toUpperCase();
+      if (!code) {
+        return sendJson(res, 400, { error: "Thiếu order_code" });
+      }
+      const snapshot = await loadSnapshot(sql);
+      const order = snapshot.orders.find(
+        (o) => String(o.order_code || "").trim().toUpperCase() === code
+      );
+      if (!order) {
+        return sendJson(res, 404, { error: "Không tìm thấy đơn với mã này." });
+      }
+      return sendJson(res, 200, {
+        order_id: order.id,
+        order_code: order.order_code,
+        status: order.status,
+        amount: order.amount,
+      });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/payment-orders") {
       const body = await readJsonBody(req);
       const name = String(body.name || "").trim();
@@ -302,8 +353,6 @@ async function handleApiPostgres(req, res, url, deps) {
           registered_at: nowSqliteStyle(),
         });
         const productId = ensureDefaultProduct(snap);
-        const prod = snap.products.find((p) => p.id === productId);
-        if (prod.stock_quantity <= 0) throw new Error("Sản phẩm đã hết hàng");
         const id = nextId(snap.orders);
         snap.orders.push({
           id,
@@ -314,7 +363,6 @@ async function handleApiPostgres(req, res, url, deps) {
           order_code: orderCode,
           purchased_at: nowSqliteStyle(),
         });
-        prod.stock_quantity -= 1;
         return id;
       });
       return sendJson(res, 201, { success: true, order_id: orderId, order_code: orderCode });
@@ -342,13 +390,13 @@ async function handleApiPostgres(req, res, url, deps) {
 
       const transferType = String(payload.transferType || "").toLowerCase();
       const transferAmount = Number(payload.transferAmount || 0);
-      const content = String(payload.content || payload.description || "");
+      const memo = extractTransferMemoFromPayload(payload);
 
       if (transferType !== "in" || !Number.isFinite(transferAmount) || transferAmount <= 0) {
         return sendJson(res, 200, { success: true, ignored: true });
       }
 
-      const matchedOrder = findOrderByTransfer(snapshot, content, transferAmount);
+      const matchedOrder = findOrderByTransfer(snapshot, memo);
       if (!matchedOrder) {
         return sendJson(res, 200, { success: true, matched: false });
       }

@@ -180,6 +180,11 @@
           <td>${item.purchased_at || ""}</td>
           <td>
             <div class="actions">
+              ${
+                item.status === "pending"
+                  ? `<button type="button" class="action ok" data-confirm-payment="${item.id}">Xác nhận thanh toán</button>`
+                  : ""
+              }
               <button class="action" data-edit-order="${item.id}">Sua</button>
               <button class="action danger" data-del-order="${item.id}">Xoa</button>
             </div>
@@ -204,6 +209,11 @@
     });
     wrap.querySelectorAll("[data-del-order]").forEach((btn) => {
       btn.addEventListener("click", () => deleteOrder(Number(btn.dataset.delOrder)));
+    });
+    wrap.querySelectorAll("[data-confirm-payment]").forEach((btn) => {
+      btn.addEventListener("click", () =>
+        confirmPayment(Number(btn.dataset.confirmPayment)).catch((error) => alert(error.message))
+      );
     });
   }
 
@@ -371,6 +381,12 @@
   async function deleteOrder(id) {
     if (!confirm("Xoa don hang nay?")) return;
     await api(`/api/orders/${id}`, { method: "DELETE" });
+    await loadAll();
+  }
+
+  async function confirmPayment(id) {
+    if (!confirm("Xác nhận đã nhận tiền cho đơn này? Trạng thái sẽ chuyển sang success.")) return;
+    await api(`/api/orders/${id}/confirm-payment`, { method: "POST", body: "{}" });
     await loadAll();
   }
 

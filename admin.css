@@ -99,6 +99,14 @@ button.danger {
   background: #b91c1c;
 }
 
+button.action.ok {
+  background: #15803d;
+}
+
+button.action.ok:hover {
+  background: #166534;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
