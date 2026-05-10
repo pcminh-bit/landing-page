@@ -1,15 +1,17 @@
 /**
- * Resend REST API qua node:https (không dùng global fetch — tránh hạn chế egress trên Vercel).
+ * Gửi mail qua Resend SMTP (nodemailer): smtp.resend.com:2525, STARTTLS.
+ * Pass auth = API key từ caller (thường là RESEND_API_KEY qua loadResendApiKey).
  *
  * Key: RESEND_API_KEY hoặc file resend_config.txt (dòng bắt đầu re_).
  *
  * Logging: mặc định tóm tắt + lỗi đầy đủ; chi tiết: RESEND_MAIL_LOG=1.
  */
 const fs = require("node:fs");
-const https = require("node:https");
 const path = require("node:path");
+const nodemailer = require("nodemailer");
 
 const RESEND_CONFIG_FILE = path.join(__dirname, "resend_config.txt");
+const SMTP_TIMEOUT_MS = 15_000;
 
 function resendVerbose() {
   return (
@@ -119,49 +121,32 @@ function envResendKeyPrefix5() {
   return String(v).trim().slice(0, 5);
 }
 
-/**
- * POST https://api.resend.com/emails via node:https (payload = body JSON Resend).
- * @param {string} apiKey
- * @param {{ from: string; to: string[]; subject: string; html: string }} payload
- * @returns {Promise<{ status: number; body: string }>}
- */
-function sendViaHttps(apiKey, payload) {
-  const timeoutMs = Number(process.env.RESEND_HTTPS_TIMEOUT_MS || "10000");
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify(payload);
-    const req = https.request(
-      {
-        hostname: "api.resend.com",
-        path: "/emails",
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "Content-Length": Buffer.byteLength(body),
-        },
-      },
-      (res) => {
-        let data = "";
-        res.on("data", (chunk) => {
-          data += chunk;
-        });
-        res.on("end", () =>
-          resolve({ status: res.statusCode ?? 0, body: data })
-        );
-      }
-    );
-    req.on("error", reject);
-    req.setTimeout(timeoutMs, () => {
-      req.destroy(new Error("Resend HTTPS request timeout"));
-    });
-    req.write(body);
-    req.end();
+let cachedSmtpTransport = null;
+let cachedSmtpPass = "";
+
+/** Resend SMTP (port 2525, STARTTLS). auth.pass = API key. */
+function getResendSmtpTransport(apiKey) {
+  const pass = String(apiKey || "").trim();
+  if (!pass) return null;
+  if (cachedSmtpTransport && cachedSmtpPass === pass) {
+    return cachedSmtpTransport;
+  }
+  cachedSmtpTransport = nodemailer.createTransport({
+    host: "smtp.resend.com",
+    port: 2525,
+    secure: false,
+    auth: { user: "resend", pass },
+    connectionTimeout: SMTP_TIMEOUT_MS,
+    greetingTimeout: SMTP_TIMEOUT_MS,
+    socketTimeout: SMTP_TIMEOUT_MS,
   });
+  cachedSmtpPass = pass;
+  return cachedSmtpTransport;
 }
 
 /**
- * Gửi mail qua Bearer `apiKey` (tham số). Key **không** đọc trong hàm này — caller truyền từ
- * `loadResendApiKey()` / `describeApiKeyResolution()` (env `RESEND_API_KEY` trước, sau đó file).
+ * Gửi mail qua Bearer `apiKey` (thực tế dùng làm SMTP password cho user `resend`).
+ * Caller truyền từ `loadResendApiKey()` / `describeApiKeyResolution()`.
  *
  * @param {string} apiKey
  * @param {{ from: string; to: string | string[]; subject: string; html: string }} payload
@@ -180,7 +165,9 @@ async function sendResendEmail(apiKey, payload) {
     process_env_RESEND_API_KEY_first5: envP,
     bearer_apiKey_first5: bearerP,
     VERCEL: process.env.VERCEL === "1",
-    channel: "https",
+    channel: "smtp",
+    smtpHost: "smtp.resend.com",
+    smtpPort: 2525,
   });
 
   if (resendVerbose()) {
@@ -193,72 +180,74 @@ async function sendResendEmail(apiKey, payload) {
     });
   }
 
-  const apiPayload = {
+  const transport = getResendSmtpTransport(apiKey);
+  if (!transport) {
+    throw new Error("SMTP: thiếu API key");
+  }
+
+  const t0 = Date.now();
+  const mailOptions = {
     from: resendBody.from,
     to,
     subject: resendBody.subject,
     html: resendBody.html,
   };
 
-  const t0 = Date.now();
-  let httpRes;
-  let rawText = "";
+  console.log("[resend:smtp] before sendMail", {
+    label,
+    from: mailOptions.from,
+    toCount: Array.isArray(mailOptions.to)
+      ? mailOptions.to.length
+      : String(mailOptions.to).split(",").length,
+    subjectSlice: String(mailOptions.subject || "").slice(0, 80),
+    timeoutMs: SMTP_TIMEOUT_MS,
+  });
 
+  let info;
   try {
-    httpRes = await sendViaHttps(String(apiKey).trim(), apiPayload);
-    rawText = httpRes.body;
-  } catch (netErr) {
-    console.error("[resend:send:network]", {
+    info = await transport.sendMail(mailOptions);
+  } catch (smtpErr) {
+    const ms = Date.now() - t0;
+    console.error("[resend:send:error]", {
       label,
-      via: "https",
-      message: netErr.message,
-      name: netErr.name,
-      stack: resendVerbose() ? netErr.stack : undefined,
+      via: "smtp",
+      ms,
+      code: smtpErr.code,
+      command: smtpErr.command,
+      response: smtpErr.response,
+      message: smtpErr.message,
+      stack: resendVerbose() ? smtpErr.stack : undefined,
     });
-    throw netErr;
-  }
-
-  let data = {};
-  try {
-    data = rawText ? JSON.parse(rawText) : {};
-  } catch {
-    data = { _raw: rawText };
+    throw smtpErr;
   }
 
   const ms = Date.now() - t0;
-  const httpStatus = httpRes.status;
-  const ok = httpStatus >= 200 && httpStatus < 300;
+  console.log("[resend:smtp] after sendMail", {
+    label,
+    ms,
+    messageId: info.messageId,
+    response: info.response?.slice?.(0, 200),
+  });
 
-  if (!ok) {
-    console.error("[resend:send:error]", {
-      label,
-      via: "https",
-      httpStatus,
-      ms,
-      responseBody: data,
-      rawSnippet: typeof rawText === "string" ? rawText.slice(0, 500) : rawText,
-    });
-    const msg =
-      typeof data.message === "string"
-        ? data.message
-        : Array.isArray(data.message)
-          ? JSON.stringify(data.message)
-          : data.message?.toString?.() || JSON.stringify(data);
-    throw new Error(msg || `HTTP ${httpStatus}`);
-  }
+  const id =
+    info.messageId && typeof info.messageId === "string"
+      ? info.messageId.replace(/[<>]/g, "")
+      : null;
 
   console.log("[resend:send:ok]", {
     label,
-    via: "https",
-    httpStatus,
+    via: "smtp",
     ms,
-    resendId: data.id || null,
+    resendId: id,
   });
   if (resendVerbose()) {
-    console.log("[resend:send:responseBody]", JSON.stringify(data));
+    console.log("[resend:send:smtp:info]", {
+      envelope: info.envelope,
+      messageId: info.messageId,
+    });
   }
 
-  return data;
+  return { id };
 }
 
 /**
