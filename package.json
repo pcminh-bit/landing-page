@@ -8,6 +8,7 @@
     "build": "node scripts/copy-admin-assets.js"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^0.10.4"
+    "@neondatabase/serverless": "^0.10.4",
+    "resend": "^4.0.0"
   }
 }

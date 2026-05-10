@@ -24,6 +24,7 @@ loadEnvFile(path.join(__dirname, ".env"));
 
 const { usePostgresStore } = require("./pg-store");
 const { handleApiPostgres } = require("./api-postgres");
+const { notifyWaitlistSignup } = require("./resend-mail");
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -344,15 +345,22 @@ async function handleApi(req, res, url) {
       if (!body.name) {
         return sendJson(res, 400, { error: "name là bắt buộc" });
       }
+      const lead = {
+        name: body.name.trim(),
+        email: String(body.email || "").trim(),
+        phone: body.phone || "",
+        zalo: body.zalo || "",
+      };
       db.prepare(
         "INSERT INTO customers(name, phone, email, zalo, registered_at) VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')))"
       ).run(
-        body.name.trim(),
-        body.phone || "",
-        String(body.email || "").trim(),
-        body.zalo || "",
+        lead.name,
+        lead.phone,
+        lead.email,
+        lead.zalo,
         body.registered_at || null
       );
+      void notifyWaitlistSignup(lead).catch((e) => console.error("[resend]", e));
       return sendJson(res, 201, { ok: true });
     }
 

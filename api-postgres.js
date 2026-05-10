@@ -6,6 +6,7 @@ const {
   nextId,
   nowSqliteStyle,
 } = require("./pg-store");
+const { notifyWaitlistSignup } = require("./resend-mail");
 
 function sortByIdDesc(rows) {
   return [...rows].sort((a, b) => Number(b.id) - Number(a.id));
@@ -182,17 +183,24 @@ async function handleApiPostgres(req, res, url, deps) {
       if (!body.name) {
         return sendJson(res, 400, { error: "name là bắt buộc" });
       }
+      const lead = {
+        name: body.name.trim(),
+        email: String(body.email || "").trim(),
+        phone: body.phone || "",
+        zalo: body.zalo || "",
+      };
       await mutate((snap) => {
         const id = nextId(snap.customers);
         snap.customers.push({
           id,
-          name: body.name.trim(),
-          phone: body.phone || "",
-          email: String(body.email || "").trim(),
-          zalo: body.zalo || "",
+          name: lead.name,
+          phone: lead.phone,
+          email: lead.email,
+          zalo: lead.zalo,
           registered_at: body.registered_at || nowSqliteStyle(),
         });
       });
+      void notifyWaitlistSignup(lead).catch((e) => console.error("[resend]", e));
       return sendJson(res, 201, { ok: true });
     }
 
