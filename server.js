@@ -562,11 +562,21 @@ async function handleRequest(req, res) {
     return serveStaticFile(res, path.join(ROOT, "index.html"));
   }
 
+  // Vercel serves public/ via filesystem first; keep copies in public/ for production.
+  // Locally, prefer public/admin.* when present so behavior matches deploy.
+  const publicPath = path.join(PUBLIC_DIR, requested);
+  if (
+    (requested === "admin.js" || requested === "admin.css") &&
+    fs.existsSync(publicPath)
+  ) {
+    return serveStaticFile(res, publicPath);
+  }
+
   const rootPath = path.join(ROOT, requested);
   if (fs.existsSync(rootPath)) {
     return serveStaticFile(res, rootPath);
   }
-  return serveStaticFile(res, path.join(PUBLIC_DIR, requested));
+  return serveStaticFile(res, publicPath);
 }
 
 module.exports = handleRequest;
