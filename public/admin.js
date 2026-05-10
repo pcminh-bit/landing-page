@@ -133,6 +133,7 @@
         <tr>
           <td>${item.id}</td>
           <td>${item.name}</td>
+          <td>${item.email || ""}</td>
           <td>${item.phone || ""}</td>
           <td>${item.zalo || ""}</td>
           <td>${item.registered_at || ""}</td>
@@ -150,7 +151,7 @@
       <table>
         <thead>
           <tr>
-            <th>ID</th><th>Ten</th><th>So dien thoai</th><th>Zalo</th><th>Ngay dang ky</th><th>Hanh dong</th>
+            <th>ID</th><th>Ten</th><th>Email</th><th>So dien thoai</th><th>Zalo</th><th>Ngay dang ky</th><th>Hanh dong</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -272,6 +273,7 @@
   async function addCustomer() {
     const name = prompt("Ten khach hang:");
     if (!name) return;
+    const email = prompt("Email:", "") || "";
     const phone = prompt("So dien thoai:", "") || "";
     const zalo = prompt("Zalo:", "") || "";
     const registeredAt = prompt("Ngay dang ky (YYYY-MM-DD HH:MM:SS), bo trong de lay hien tai:", "") || null;
@@ -279,6 +281,7 @@
       method: "POST",
       body: JSON.stringify({
         name,
+        email,
         phone,
         zalo,
         registered_at: registeredAt,
@@ -292,6 +295,7 @@
     if (!item) return;
     const name = prompt("Ten khach hang:", item.name);
     if (!name) return;
+    const email = prompt("Email:", item.email || "") || "";
     const phone = prompt("So dien thoai:", item.phone || "") || "";
     const zalo = prompt("Zalo:", item.zalo || "") || "";
     const registeredAt = prompt(
@@ -303,6 +307,7 @@
       method: "PUT",
       body: JSON.stringify({
         name,
+        email,
         phone,
         zalo,
         registered_at: registeredAt || null,
@@ -326,7 +331,9 @@
       alert("Can co it nhat 1 san pham.");
       return;
     }
-    const customerList = state.customers.map((c) => `${c.id} - ${c.name}`).join("\n");
+    const customerList = state.customers
+      .map((c) => `${c.id} - ${c.name}${c.email ? " (" + c.email + ")" : ""}`)
+      .join("\n");
     const productList = state.products
       .map((p) => `${p.id} - ${p.name} (ton: ${p.stock_quantity})`)
       .join("\n");
@@ -355,7 +362,9 @@
   async function editOrder(id) {
     const item = state.orders.find((x) => x.id === id);
     if (!item) return;
-    const customerList = state.customers.map((c) => `${c.id} - ${c.name}`).join("\n");
+    const customerList = state.customers
+      .map((c) => `${c.id} - ${c.name}${c.email ? " (" + c.email + ")" : ""}`)
+      .join("\n");
     const productList = state.products.map((p) => `${p.id} - ${p.name}`).join("\n");
 
     const customerId = prompt(`Nhap customer_id:\n${customerList}`, String(item.customer_id));

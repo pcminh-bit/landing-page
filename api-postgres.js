@@ -188,6 +188,7 @@ async function handleApiPostgres(req, res, url, deps) {
           id,
           name: body.name.trim(),
           phone: body.phone || "",
+          email: String(body.email || "").trim(),
           zalo: body.zalo || "",
           registered_at: body.registered_at || nowSqliteStyle(),
         });
@@ -206,6 +207,7 @@ async function handleApiPostgres(req, res, url, deps) {
         if (!c) throw new Error("Khach hang khong ton tai");
         c.name = body.name.trim();
         c.phone = body.phone || "";
+        c.email = String(body.email || "").trim();
         c.zalo = body.zalo || "";
         if (body.registered_at) c.registered_at = body.registered_at;
       });
@@ -349,6 +351,7 @@ async function handleApiPostgres(req, res, url, deps) {
           id: customerId,
           name,
           phone,
+          email: String(body.email || "").trim(),
           zalo,
           registered_at: nowSqliteStyle(),
         });

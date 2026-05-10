@@ -174,8 +174,59 @@
                 <p class="consultation-kicker">Nhận tư vấn học bổng tốt nhất ngay hôm nay</p>
                 <h2>Bắt đầu hành trình thăng tiến ngay hôm nay</h2>
                 <p class="consultation-subtitle">Điền thông tin để nhận ưu đãi học bổng tốt nhất dành riêng cho bạn.</p>
-                <script src="https://js.hsforms.net/forms/embed/20918102.js" defer></script>
-                <div class="hs-form-frame" data-region="na1" data-form-id="b45e9b5a-7e6d-48fe-babf-2d2fbdb97d7f" data-portal-id="20918102"></div>
+                <form id="waitlistForm" class="waitlist-form" novalidate>
+                    <div class="waitlist-form-grid">
+                        <input type="text" name="name" required placeholder="Họ và tên *" autocomplete="name" />
+                        <input type="email" name="email" required placeholder="Email *" autocomplete="email" />
+                        <input type="tel" name="phone" required placeholder="Số điện thoại *" autocomplete="tel" />
+                        <input type="text" name="zalo" placeholder="Zalo (tuỳ chọn)" autocomplete="off" />
+                    </div>
+                    <button type="submit" class="btn btn-primary waitlist-submit">Gửi đăng ký</button>
+                    <p id="waitlistFormMsg" class="waitlist-form-msg" role="status" hidden></p>
+                </form>
+                <script>
+                    (function () {
+                        var form = document.getElementById("waitlistForm");
+                        var msg = document.getElementById("waitlistFormMsg");
+                        if (!form || !msg) return;
+                        form.addEventListener("submit", async function (e) {
+                            e.preventDefault();
+                            msg.hidden = true;
+                            var fd = new FormData(form);
+                            var name = String(fd.get("name") || "").trim();
+                            var email = String(fd.get("email") || "").trim();
+                            var phone = String(fd.get("phone") || "").trim();
+                            var zalo = String(fd.get("zalo") || "").trim();
+                            if (!name || !email || !phone) {
+                                msg.textContent = "Vui lòng nhập đủ họ tên, email và số điện thoại.";
+                                msg.hidden = false;
+                                msg.classList.add("is-error");
+                                return;
+                            }
+                            var btn = form.querySelector(".waitlist-submit");
+                            if (btn) btn.disabled = true;
+                            try {
+                                var res = await fetch("/api/customers", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ name: name, email: email, phone: phone, zalo: zalo }),
+                                });
+                                var data = await res.json().catch(function () { return {}; });
+                                if (!res.ok) throw new Error(data.error || "Gửi không thành công");
+                                msg.classList.remove("is-error");
+                                msg.textContent = "Cảm ơn bạn! Đã ghi nhận thông tin. Đội ngũ tư vấn sẽ liên hệ sớm.";
+                                msg.hidden = false;
+                                form.reset();
+                            } catch (err) {
+                                msg.classList.add("is-error");
+                                msg.textContent = err.message || "Có lỗi xảy ra, vui lòng thử lại sau.";
+                                msg.hidden = false;
+                            } finally {
+                                if (btn) btn.disabled = false;
+                            }
+                        });
+                    })();
+                </script>
             </div>
         </section>
 
@@ -241,6 +292,7 @@
             const leadFormHtml =
                 '<form class="chatbot-lead-form" id="chatbotLeadForm">' +
                 '<input class="chatbot-lead-input" name="name" placeholder="Họ và tên" required />' +
+                '<input class="chatbot-lead-input" name="email" type="email" placeholder="Email" required />' +
                 '<input class="chatbot-lead-input" name="phone" placeholder="Số điện thoại" required />' +
                 '<button class="chatbot-lead-submit" type="submit">Gửi thông tin tư vấn</button>' +
                 '</form>';
@@ -473,12 +525,13 @@
                 URL.revokeObjectURL(url);
             }
 
-            async function submitLeadToHubspot(name, phone, note) {
+            async function submitLeadToHubspot(name, phone, email, note) {
                 const endpoint = `https://api.hsforms.com/submissions/v3/integration/submit/${HUBSPOT_PORTAL_ID}/${HUBSPOT_FORM_ID}`;
                 const payload = {
                     fields: [
                         { name: 'firstname', value: name },
-                        { name: 'phone', value: phone }
+                        { name: 'phone', value: phone },
+                        { name: 'email', value: email || '' }
                     ],
                     context: {
                         pageUri: window.location.href,
@@ -517,16 +570,39 @@
                     e.preventDefault();
                     const formData = new FormData(leadForm);
                     const name = (formData.get('name') || '').toString().trim();
+                    const email = (formData.get('email') || '').toString().trim();
                     const phone = (formData.get('phone') || '').toString().trim();
-                    if (!name || !phone) return;
-                    addMessage(`Em là ${name}, SĐT ${phone}.`, 'user');
+                    if (!name || !email || !phone) return;
+                    addMessage(`Em là ${name}, email ${email}, SĐT ${phone}.`, 'user');
+                    var savedLocal = false;
                     try {
-                        await submitLeadToHubspot(name, phone, 'Lead từ chatbot');
-                        addMessage('Tuyệt vời, em đã gửi thông tin của anh/chị lên hệ thống tư vấn. Team sẽ liên hệ sớm nhé.', 'bot');
+                        const cr = await fetch('/api/customers', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: name, email: email, phone: phone, zalo: '' })
+                        });
+                        const cd = await cr.json().catch(function () { return {}; });
+                        if (!cr.ok) throw new Error(cd.error || 'Không lưu được CRM nội bộ');
+                        savedLocal = true;
+                    } catch (err) {
+                        queueLead({ name: name, email: email, phone: phone, note: 'Lead chatbot — lỗi CRM: ' + (err.message || '') });
+                    }
+                    try {
+                        await submitLeadToHubspot(name, phone, email, 'Lead từ chatbot');
+                        addMessage(
+                            savedLocal
+                                ? 'Tuyệt vời, em đã lưu thông tin và gửi lên hệ thống tư vấn. Team sẽ liên hệ sớm nhé.'
+                                : 'Em đã gửi thông tin lên hệ thống tư vấn. Team sẽ liên hệ sớm nhé.',
+                            'bot'
+                        );
                     } catch (error) {
-                        queueLead({ name, phone, note: 'Lead từ chatbot (fallback queue)' });
-                        addMessage('Em đã lưu thông tin vào hàng đợi an toàn. Team vẫn sẽ liên hệ anh/chị sớm. Anh/chị có thể bấm form bên dưới để xác nhận thêm.', 'bot');
-                        addMessage(waitlistHtml, 'bot', true);
+                        queueLead({ name: name, email: email, phone: phone, note: 'Lead từ chatbot (HubSpot lỗi)' });
+                        if (savedLocal) {
+                            addMessage('Thông tin đã được lưu nội bộ. Form HubSpot tạm lỗi — team vẫn liên hệ anh/chị qua dữ liệu đã lưu.', 'bot');
+                        } else {
+                            addMessage('Em đã lưu thông tin vào hàng đợi an toàn. Anh/chị có thể bấm form bên dưới để gửi lại.', 'bot');
+                            addMessage(waitlistHtml, 'bot', true);
+                        }
                     }
                     renderSuggestions(suggestionMap.buying);
                 });

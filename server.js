@@ -93,6 +93,7 @@ function ensureColumn(tableName, columnName, columnDef) {
 
 ensureColumn("orders", "order_code", "TEXT");
 db.exec("CREATE INDEX IF NOT EXISTS idx_orders_order_code ON orders(order_code)");
+ensureColumn("customers", "email", "TEXT");
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -185,7 +186,7 @@ function getAllProducts() {
 
 function getAllCustomers() {
   return db
-    .prepare("SELECT id, name, phone, zalo, registered_at FROM customers ORDER BY id DESC")
+    .prepare("SELECT id, name, phone, email, zalo, registered_at FROM customers ORDER BY id DESC")
     .all();
 }
 
@@ -344,8 +345,14 @@ async function handleApi(req, res, url) {
         return sendJson(res, 400, { error: "name là bắt buộc" });
       }
       db.prepare(
-        "INSERT INTO customers(name, phone, zalo, registered_at) VALUES (?, ?, ?, COALESCE(?, datetime('now')))"
-      ).run(body.name.trim(), body.phone || "", body.zalo || "", body.registered_at || null);
+        "INSERT INTO customers(name, phone, email, zalo, registered_at) VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')))"
+      ).run(
+        body.name.trim(),
+        body.phone || "",
+        String(body.email || "").trim(),
+        body.zalo || "",
+        body.registered_at || null
+      );
       return sendJson(res, 201, { ok: true });
     }
 
@@ -356,8 +363,15 @@ async function handleApi(req, res, url) {
         return sendJson(res, 400, { error: "Dữ liệu cập nhật không hợp lệ" });
       }
       db.prepare(
-        "UPDATE customers SET name = ?, phone = ?, zalo = ?, registered_at = COALESCE(?, registered_at) WHERE id = ?"
-      ).run(body.name.trim(), body.phone || "", body.zalo || "", body.registered_at || null, id);
+        "UPDATE customers SET name = ?, phone = ?, email = ?, zalo = ?, registered_at = COALESCE(?, registered_at) WHERE id = ?"
+      ).run(
+        body.name.trim(),
+        body.phone || "",
+        String(body.email || "").trim(),
+        body.zalo || "",
+        body.registered_at || null,
+        id
+      );
       return sendJson(res, 200, { ok: true });
     }
 
@@ -474,9 +488,9 @@ async function handleApi(req, res, url) {
       const result = withTransaction(() => {
         const customerInsert = db
           .prepare(
-            "INSERT INTO customers(name, phone, zalo, registered_at) VALUES (?, ?, ?, datetime('now'))"
+            "INSERT INTO customers(name, phone, email, zalo, registered_at) VALUES (?, ?, ?, ?, datetime('now'))"
           )
-          .run(name, phone, zalo);
+          .run(name, phone, String(body.email || "").trim(), zalo);
         const customerId = Number(customerInsert.lastInsertRowid);
         const productId = ensureDefaultProductId();
 
