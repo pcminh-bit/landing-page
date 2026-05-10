@@ -12,6 +12,7 @@ const {
 } = require("./resend-mail");
 
 const { nextId } = require("./pg-store");
+const MAX_JOBS_PER_RUN = Number(process.env.EMAIL_SEQUENCE_MAX_PER_RUN || "10");
 
 function sqliteUtcFromMs(ms) {
   return new Date(ms).toISOString().slice(0, 19).replace("T", " ");
@@ -238,11 +239,17 @@ async function processDueJobsSqlite(db) {
        ORDER BY id ASC`
     )
     .all();
+  const jobs = rows.slice(0, MAX_JOBS_PER_RUN);
+  console.log("[email-sequence cron] sqlite jobs", {
+    due: rows.length,
+    processing: jobs.length,
+    maxPerRun: MAX_JOBS_PER_RUN,
+  });
 
   let n = 0;
   const mark = db.prepare("UPDATE email_sequence_jobs SET sent_at = datetime('now') WHERE id = ?");
 
-  for (const row of rows) {
+  for (const row of jobs) {
     try {
       await sendSequenceStep(apiKey, from, row.to_email, row.to_name || "", Number(row.step));
       mark.run(row.id);
@@ -269,7 +276,13 @@ async function processDueJobsPostgres(mutate) {
     const due = snap.email_sequence_jobs.filter(
       (j) => !j.sent_at && String(j.send_at || "") <= now
     );
-    for (const j of due) {
+    const jobs = due.slice(0, MAX_JOBS_PER_RUN);
+    console.log("[email-sequence cron] postgres jobs", {
+      due: due.length,
+      processing: jobs.length,
+      maxPerRun: MAX_JOBS_PER_RUN,
+    });
+    for (const j of jobs) {
       try {
         await sendSequenceStep(apiKey, fromEmail, j.to_email, j.to_name || "", Number(j.step));
         j.sent_at = sqliteUtcFromMs(Date.now());
