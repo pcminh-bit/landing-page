@@ -1,9 +1,12 @@
 /**
- * Resend REST API (Node 18+ fetch). Key: RESEND_API_KEY hoặc file resend_config.txt (dòng bắt đầu re_).
+ * Gửi mail qua Resend:
+ * - Trên Vercel (VERCEL=1) hoặc khi RESEND_USE_SMTP=1: SMTP smtp.resend.com + nodemailer (tránh REST fetch tới api.resend.com).
+ * - Còn lại: REST POST (fetch) tới https://api.resend.com/emails.
  *
- * Logging:
- * - Mặc định luôn log tóm tắt + lỗi Resend đầy đủ (không in full API key).
- * - Chi tiết hơn: đặt RESEND_MAIL_LOG=1 trong env.
+ * Key: RESEND_API_KEY hoặc file resend_config.txt (dòng bắt đầu re_).
+ *
+ * Logging: mặc định tóm tắt + lỗi đầy đủ; chi tiết: RESEND_MAIL_LOG=1.
+ * Buộc REST trên Vercel (debug): RESEND_USE_REST=1.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -118,6 +121,98 @@ function envResendKeyPrefix5() {
   return String(v).trim().slice(0, 5);
 }
 
+function useResendSmtpChannel() {
+  if (
+    process.env.RESEND_USE_REST === "1" ||
+    process.env.RESEND_USE_REST === "true"
+  ) {
+    return false;
+  }
+  return (
+    process.env.VERCEL === "1" ||
+    process.env.RESEND_USE_SMTP === "1" ||
+    process.env.RESEND_USE_SMTP === "true"
+  );
+}
+
+let cachedSmtpTransport = null;
+let cachedSmtpPass = "";
+
+/** Resend SMTP: https://resend.com/docs/send-with-smtp-nodemailer */
+function getResendSmtpTransport(apiKey) {
+  const pass = String(apiKey || "").trim();
+  if (!pass) return null;
+  const nodemailer = require("nodemailer");
+  const port = Number(process.env.RESEND_SMTP_PORT || "465");
+  const secure = port === 465;
+  if (cachedSmtpTransport && cachedSmtpPass === pass) {
+    return cachedSmtpTransport;
+  }
+  cachedSmtpTransport = nodemailer.createTransport({
+    host: "smtp.resend.com",
+    port,
+    secure,
+    auth: { user: "resend", pass },
+    // Vercel: giữ handshake nhanh, tránh treo idle
+    connectionTimeout: 20_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 45_000,
+  });
+  cachedSmtpPass = pass;
+  return cachedSmtpTransport;
+}
+
+/**
+ * @returns {Promise<{ id: string | null }>}
+ */
+async function sendResendViaSmtp(apiKey, resendBody, to, label) {
+  const transport = getResendSmtpTransport(apiKey);
+  if (!transport) {
+    throw new Error("SMTP: missing API key for auth");
+  }
+  const t0 = Date.now();
+  try {
+    const info = await transport.sendMail({
+      from: resendBody.from,
+      to,
+      subject: resendBody.subject,
+      html: resendBody.html,
+    });
+    const ms = Date.now() - t0;
+    const id =
+      info.messageId && typeof info.messageId === "string"
+        ? info.messageId.replace(/[<>]/g, "")
+        : null;
+    console.log("[resend:send:ok]", {
+      label,
+      via: "smtp",
+      ms,
+      resendId: id,
+      response: info.response?.slice?.(0, 200),
+    });
+    if (resendVerbose()) {
+      console.log("[resend:send:smtp:info]", {
+        envelope: info.envelope,
+        messageId: info.messageId,
+      });
+    }
+    return { id };
+  } catch (smtpErr) {
+    const ms = Date.now() - t0;
+    console.error("[resend:send:error]", {
+      label,
+      via: "smtp",
+      ms,
+      code: smtpErr.code,
+      command: smtpErr.command,
+      response: smtpErr.response,
+      message: smtpErr.message,
+      stack: resendVerbose() ? smtpErr.stack : undefined,
+    });
+    throw smtpErr;
+  }
+}
+
 /**
  * Gửi mail qua Bearer `apiKey` (tham số). Key **không** đọc trong hàm này — caller truyền từ
  * `loadResendApiKey()` / `describeApiKeyResolution()` (env `RESEND_API_KEY` trước, sau đó file).
@@ -135,10 +230,12 @@ async function sendResendEmail(apiKey, payload) {
     apiKey && String(apiKey).trim()
       ? String(apiKey).trim().slice(0, 5)
       : "(empty)";
+  const smtp = useResendSmtpChannel();
   console.log("[resend:send:env-check]", {
     process_env_RESEND_API_KEY_first5: envP,
     bearer_apiKey_first5: bearerP,
     VERCEL: process.env.VERCEL === "1",
+    channel: smtp ? "smtp" : "rest",
   });
 
   if (resendVerbose()) {
@@ -149,6 +246,10 @@ async function sendResendEmail(apiKey, payload) {
       subject: resendBody.subject?.slice?.(0, 80),
       htmlLen: String(resendBody.html || "").length,
     });
+  }
+
+  if (smtp) {
+    return sendResendViaSmtp(apiKey, resendBody, to, label);
   }
 
   const t0 = Date.now();
@@ -173,6 +274,7 @@ async function sendResendEmail(apiKey, payload) {
   } catch (netErr) {
     console.error("[resend:send:network]", {
       label,
+      via: "rest",
       message: netErr.message,
       name: netErr.name,
       stack: resendVerbose() ? netErr.stack : undefined,
@@ -192,6 +294,7 @@ async function sendResendEmail(apiKey, payload) {
   if (!response.ok) {
     console.error("[resend:send:error]", {
       label,
+      via: "rest",
       httpStatus: response.status,
       ms,
       responseBody: data,
@@ -208,6 +311,7 @@ async function sendResendEmail(apiKey, payload) {
 
   console.log("[resend:send:ok]", {
     label,
+    via: "rest",
     httpStatus: response.status,
     ms,
     resendId: data.id || null,
