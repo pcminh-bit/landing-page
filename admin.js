@@ -72,6 +72,10 @@
     return Number(value || 0).toLocaleString("vi-VN");
   }
 
+  function isOrderPending(status) {
+    return String(status || "").trim().toLowerCase() === "pending";
+  }
+
   function renderProducts() {
     const wrap = document.getElementById("products-table-wrap");
     if (!state.products.length) {
@@ -181,7 +185,7 @@
           <td>
             <div class="actions">
               ${
-                item.status === "pending"
+                isOrderPending(item.status)
                   ? `<button type="button" class="action ok" data-confirm-payment="${item.id}">Xác nhận thanh toán</button>`
                   : ""
               }

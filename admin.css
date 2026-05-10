@@ -81,6 +81,21 @@ h1 {
   font-size: 20px;
 }
 
+.panel-hint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #4b5563;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.panel-hint a {
+  color: #1d4ed8;
+}
+
 button {
   border: 0;
   background: #111827;

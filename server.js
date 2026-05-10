@@ -165,7 +165,14 @@ function serveStaticFile(res, filePath) {
     }
     const ext = path.extname(normalized).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
-    res.writeHead(200, { "Content-Type": contentType });
+    const base = path.basename(normalized).toLowerCase();
+    const adminAsset =
+      base === "admin.js" || base === "admin.css" || base === "admin.html";
+    const headers = { "Content-Type": contentType };
+    if (adminAsset) {
+      headers["Cache-Control"] = "no-store, max-age=0";
+    }
+    res.writeHead(200, headers);
     res.end(data);
   });
 }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Panel</title>
-  <link rel="stylesheet" href="/admin.css" />
+  <link rel="stylesheet" href="/admin.css?v=2" />
 </head>
 <body>
   <main class="admin-wrap">
@@ -39,10 +39,11 @@
         <h2>Đơn hàng</h2>
         <button id="add-order-btn">+ Thêm đơn hàng</button>
       </div>
+      <p class="panel-hint">Nút <strong>Xác nhận thanh toán</strong> chỉ hiện khi đơn có trạng thái <strong>pending</strong>. Đơn đã success sẽ không có nút. Thử: tạo đơn từ trang <a href="/payment">/payment</a> hoặc Thêm đơn hàng với trạng thái pending.</p>
       <div id="orders-table-wrap"></div>
     </section>
   </main>
 
-  <script src="/admin.js"></script>
+  <script src="/admin.js?v=2"></script>
 </body>
 </html>
