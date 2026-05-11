@@ -1,0 +1,18 @@
+[Unit]
+Description=Landing Page Node API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/landing-page
+EnvironmentFile=/var/www/landing-page/.env.production
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/landing-page/app.log
+StandardError=append:/var/log/landing-page/app-error.log
+
+[Install]
+WantedBy=multi-user.target

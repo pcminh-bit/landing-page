@@ -2,7 +2,7 @@
   "name": "hocbong-upgrad-landing",
   "private": true,
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "scripts": {
     "build": "node scripts/copy-admin-assets.js"

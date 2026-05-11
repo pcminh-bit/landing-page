@@ -1,0 +1,4 @@
+# Optional fallback config for Resend.
+# Prefer environment variables in production.
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxx
+RESEND_FROM_EMAIL=noreply@your-domain.com
