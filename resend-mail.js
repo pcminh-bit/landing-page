@@ -306,7 +306,10 @@ async function notifyWaitlistSignup(lead) {
       console.warn("[resend] RESEND_TO_EMAIL trống — bỏ qua mail admin.");
     }
   } catch (e) {
-    console.error("[resend] notifyWaitlistSignup failed:", e.message || e);
+    console.error("[resend] notifyWaitlistSignup failed:", {
+      message: e?.message || String(e),
+      response: e?.response || null,
+    });
   }
 }
 

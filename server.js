@@ -396,10 +396,18 @@ async function handleApi(req, res, url) {
         lead.zalo,
         body.registered_at || null
       );
-      void notifyWaitlistSignup(lead).catch((e) => console.error("[resend]", e));
-      void runWaitlistSignupSequence(lead, { sqlite: db }).catch((e) =>
-        console.error("[email-sequence]", e)
-      );
+      const emailTasks = await Promise.allSettled([
+        notifyWaitlistSignup(lead),
+        runWaitlistSignupSequence(lead, { sqlite: db }),
+      ]);
+      for (const task of emailTasks) {
+        if (task.status !== "rejected") continue;
+        const err = task.reason;
+        console.error("[email-flow] customer signup email task failed", {
+          message: err?.message || String(err),
+          response: err?.response || null,
+        });
+      }
       return sendJson(res, 201, { ok: true });
     }
 

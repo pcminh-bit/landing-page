@@ -217,10 +217,18 @@ async function handleApiPostgres(req, res, url, deps) {
           registered_at: body.registered_at || nowSqliteStyle(),
         });
       });
-      void notifyWaitlistSignup(lead).catch((e) => console.error("[resend]", e));
-      void runWaitlistSignupSequence(lead, { postgresMutate: mutate }).catch((e) =>
-        console.error("[email-sequence]", e)
-      );
+      const emailTasks = await Promise.allSettled([
+        notifyWaitlistSignup(lead),
+        runWaitlistSignupSequence(lead, { postgresMutate: mutate }),
+      ]);
+      for (const task of emailTasks) {
+        if (task.status !== "rejected") continue;
+        const err = task.reason;
+        console.error("[email-flow] customer signup email task failed", {
+          message: err?.message || String(err),
+          response: err?.response || null,
+        });
+      }
       return sendJson(res, 201, { ok: true });
     }
 

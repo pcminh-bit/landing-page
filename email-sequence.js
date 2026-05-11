@@ -217,7 +217,10 @@ async function runWaitlistSignupSequence(lead, storage = {}) {
       });
     }
   } catch (e) {
-    console.error("[email-sequence] runWaitlistSignupSequence lỗi:", e?.message || e);
+    console.error("[email-sequence] runWaitlistSignupSequence lỗi:", {
+      message: e?.message || String(e),
+      response: e?.response || null,
+    });
     if (process.env.RESEND_MAIL_LOG === "1" || process.env.RESEND_MAIL_LOG === "true") {
       console.error(e?.stack || e);
     }
@@ -255,7 +258,11 @@ async function processDueJobsSqlite(db) {
       mark.run(row.id);
       n++;
     } catch (e) {
-      console.error("[email-sequence cron] job", row.id, e.message || e);
+      console.error("[email-sequence cron] job failed", {
+        jobId: row.id,
+        message: e?.message || String(e),
+        response: e?.response || null,
+      });
     }
   }
   return n;
@@ -288,7 +295,11 @@ async function processDueJobsPostgres(mutate) {
         j.sent_at = sqliteUtcFromMs(Date.now());
         processed++;
       } catch (e) {
-        console.error("[email-sequence cron] pg job", j.id, e.message || e);
+        console.error("[email-sequence cron] pg job failed", {
+          jobId: j.id,
+          message: e?.message || String(e),
+          response: e?.response || null,
+        });
       }
     }
   });
