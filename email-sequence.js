@@ -5,10 +5,13 @@
 const {
   sendResendEmail,
   loadResendApiKey,
+  loadResendFromEmail,
   isLikelyEmail,
   escapeHtml,
   describeApiKeyResolution,
+  describeFromEmailResolution,
   logResendKeyStatus,
+  logResendFromStatus,
 } = require("./resend-mail");
 
 const { nextId } = require("./pg-store");
@@ -179,14 +182,17 @@ async function runWaitlistSignupSequence(lead, storage = {}) {
   }
 
   logResendKeyStatus("before sequence");
+  logResendFromStatus("before sequence");
   const keyMeta = describeApiKeyResolution();
+  const fromMeta = describeFromEmailResolution();
   const apiKey = keyMeta.key;
-  const from = String(process.env.RESEND_FROM_EMAIL || "").trim();
+  const from = String(fromMeta.fromEmail || "").trim();
 
   console.log("[email-sequence] điều kiện gửi", {
     apiKeySource: keyMeta.source,
     apiKeyMasked: keyMeta.detail,
     RESEND_FROM_EMAIL: from || "(thiếu)",
+    fromSource: fromMeta.source,
   });
 
   if (!apiKey || !from) {
@@ -232,7 +238,7 @@ async function runWaitlistSignupSequence(lead, storage = {}) {
  */
 async function processDueJobsSqlite(db) {
   const apiKey = loadResendApiKey();
-  const from = String(process.env.RESEND_FROM_EMAIL || "").trim();
+  const from = String(loadResendFromEmail() || "").trim();
   if (!apiKey || !from) return 0;
 
   const rows = db
@@ -273,7 +279,7 @@ async function processDueJobsSqlite(db) {
  */
 async function processDueJobsPostgres(mutate) {
   const apiKey = loadResendApiKey();
-  const fromEmail = String(process.env.RESEND_FROM_EMAIL || "").trim();
+  const fromEmail = String(loadResendFromEmail() || "").trim();
   if (!apiKey || !fromEmail) return 0;
 
   let processed = 0;

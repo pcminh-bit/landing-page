@@ -6,7 +6,7 @@ const {
   nextId,
   nowSqliteStyle,
 } = require("./pg-store");
-const { notifyWaitlistSignup } = require("./resend-mail");
+const { notifyWaitlistSignup, sendOrderCreatedConfirmation } = require("./resend-mail");
 const {
   runWaitlistSignupSequence,
   processDueJobsPostgres,
@@ -276,10 +276,13 @@ async function handleApiPostgres(req, res, url, deps) {
         return sendJson(res, 400, { error: "Dữ liệu đơn hàng không hợp lệ" });
       }
 
+      let orderEmailContext = null;
       await mutate((snap) => {
         const product = snap.products.find((p) => p.id === productId);
         if (!product) throw new Error("Sản phẩm không tồn tại");
         if (product.stock_quantity <= 0) throw new Error("Sản phẩm đã hết hàng");
+        const customer = snap.customers.find((c) => c.id === customerId);
+        if (!customer) throw new Error("Khách hàng không tồn tại");
 
         const id = nextId(snap.orders);
         snap.orders.push({
@@ -291,8 +294,30 @@ async function handleApiPostgres(req, res, url, deps) {
           order_code: orderCode,
           purchased_at: body.purchased_at || nowSqliteStyle(),
         });
+        orderEmailContext = {
+          customerName: customer.name || "",
+          customerEmail: String(customer.email || "").trim(),
+          productName: product.name || "",
+        };
         product.stock_quantity -= 1;
       });
+      try {
+        await sendOrderCreatedConfirmation({
+          customerName: orderEmailContext?.customerName,
+          customerEmail: orderEmailContext?.customerEmail,
+          productName: orderEmailContext?.productName,
+          amount,
+          orderCode,
+        });
+      } catch (e) {
+        console.error("[email-flow] order confirmation failed", {
+          message: e?.message || String(e),
+          response: e?.response || null,
+          orderCode,
+          customerId,
+          productId,
+        });
+      }
       return sendJson(res, 201, { ok: true, order_code: orderCode });
     }
 

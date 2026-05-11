@@ -103,12 +103,104 @@ function isLikelyEmail(s) {
 }
 
 /**
+ * @returns {{ fromEmail: string | null, source: 'env' | 'file' | 'none', fileExists: boolean, detail?: string }}
+ */
+function describeFromEmailResolution() {
+  const envRaw = process.env.RESEND_FROM_EMAIL;
+  const env = envRaw ? String(envRaw).trim() : "";
+  const fileExists = fs.existsSync(RESEND_CONFIG_FILE);
+
+  if (env) {
+    return {
+      fromEmail: env,
+      source: "env",
+      fileExists,
+      detail: env,
+    };
+  }
+
+  if (!fileExists) {
+    return {
+      fromEmail: null,
+      source: "none",
+      fileExists: false,
+      detail: "Thiếu RESEND_FROM_EMAIL và không có resend_config.txt.",
+    };
+  }
+
+  try {
+    const raw = fs.readFileSync(RESEND_CONFIG_FILE, "utf-8");
+    const lines = raw
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => Boolean(l) && !l.startsWith("#"));
+    const kvCandidates = [
+      "RESEND_FROM_EMAIL=",
+      "FROM_EMAIL=",
+      "from=",
+      "sender=",
+    ];
+    const kvLine = lines.find((line) =>
+      kvCandidates.some((prefix) => line.startsWith(prefix))
+    );
+    if (kvLine) {
+      const email = String(kvLine.split("=").slice(1).join("=") || "").trim();
+      if (isLikelyEmail(email)) {
+        return {
+          fromEmail: email,
+          source: "file",
+          fileExists: true,
+          detail: email,
+        };
+      }
+    }
+
+    const emailLine = lines.find((line) => isLikelyEmail(line));
+    if (emailLine) {
+      return {
+        fromEmail: emailLine,
+        source: "file",
+        fileExists: true,
+        detail: emailLine,
+      };
+    }
+
+    return {
+      fromEmail: null,
+      source: "none",
+      fileExists: true,
+      detail:
+        "resend_config.txt không có email sender hợp lệ. Thêm RESEND_FROM_EMAIL=you@hocbong-upgrad.com",
+    };
+  } catch (e) {
+    return {
+      fromEmail: null,
+      source: "none",
+      fileExists: true,
+      detail: `Đọc resend_config.txt lỗi: ${e.message}`,
+    };
+  }
+}
+
+function loadResendFromEmail() {
+  return describeFromEmailResolution().fromEmail;
+}
+
+/**
  * Log lần resolve key (helper cho debug route / sequence).
  */
 function logResendKeyStatus(context = "load") {
   const meta = describeApiKeyResolution();
   console.log(
     `[resend:key] (${context}) source=${meta.source} file_exists=${meta.fileExists} key=${meta.detail}`
+  );
+  return meta;
+}
+
+function logResendFromStatus(context = "load") {
+  const meta = describeFromEmailResolution();
+  console.log(
+    `[resend:from] (${context}) source=${meta.source} file_exists=${meta.fileExists} from=${meta.detail}`
   );
   return meta;
 }
@@ -123,6 +215,11 @@ function envResendKeyPrefix5() {
 function truncate(value, max = 400) {
   const s = typeof value === "string" ? value : JSON.stringify(value);
   return s.length > max ? `${s.slice(0, max)}...` : s;
+}
+
+function formatVnd(value) {
+  const n = Number(value || 0);
+  return `${n.toLocaleString("vi-VN")} VNĐ`;
 }
 
 /**
@@ -172,6 +269,12 @@ async function sendResendEmail(apiKey, payload) {
     subject: resendBody.subject,
     html: resendBody.html,
   };
+  const sender = String(body.from || "").toLowerCase().trim();
+  if (sender.includes("onboarding@resend.dev")) {
+    console.warn(
+      "[resend:from-warning] onboarding@resend.dev chỉ gửi được tới email chính chủ Resend; hãy dùng sender đã verify domain."
+    );
+  }
 
   console.log("[resend:rest] before fetch", {
     label,
@@ -267,8 +370,9 @@ async function sendResendEmail(apiKey, payload) {
  */
 async function notifyWaitlistSignup(lead) {
   logResendKeyStatus("notifyWaitlistSignup");
+  logResendFromStatus("notifyWaitlistSignup");
   const apiKey = loadResendApiKey();
-  const from = String(process.env.RESEND_FROM_EMAIL || "").trim();
+  const from = String(loadResendFromEmail() || "").trim();
   const adminTo = String(process.env.RESEND_TO_EMAIL || "").trim();
 
   if (!apiKey || !from) {
@@ -313,13 +417,83 @@ async function notifyWaitlistSignup(lead) {
   }
 }
 
+/**
+ * Gửi email xác nhận đơn hàng khi admin tạo đơn mới trong /admin.
+ * @param {{ customerName?: string; customerEmail?: string; productName?: string; amount?: number; orderCode?: string }} order
+ */
+async function sendOrderCreatedConfirmation(order) {
+  logResendKeyStatus("sendOrderCreatedConfirmation");
+  logResendFromStatus("sendOrderCreatedConfirmation");
+  const apiKey = loadResendApiKey();
+  const from = String(loadResendFromEmail() || "").trim();
+  const to = String(order.customerEmail || "").trim();
+
+  if (!apiKey || !from) {
+    console.warn("[resend] Skip order-confirmation: thiếu API key hoặc RESEND_FROM_EMAIL", {
+      hasKey: Boolean(apiKey),
+      fromPresent: Boolean(from),
+    });
+    return { skipped: true, reason: "missing_sender_or_key" };
+  }
+  if (!isLikelyEmail(to)) {
+    console.warn("[resend] Skip order-confirmation: email khách không hợp lệ.", {
+      to: to || "(trống)",
+    });
+    return { skipped: true, reason: "invalid_customer_email" };
+  }
+
+  const customerName = String(order.customerName || "").trim() || "bạn";
+  const productName = String(order.productName || "").trim() || "gói đã đăng ký";
+  const amountText = formatVnd(order.amount);
+  const orderCode = String(order.orderCode || "").trim();
+  const paymentUrl = "https://hocbong-upgrad.com/payment";
+
+  const subject = `Xác nhận đơn hàng ${orderCode ? `#${orderCode}` : ""} — ${productName}`;
+  const html = `
+<div style="font-family:system-ui,sans-serif;line-height:1.6;color:#111827;font-size:16px;">
+  <p>Chào ${escapeHtml(customerName)},</p>
+  <p>Mình xác nhận team đã tạo đơn cho bạn rồi, không vòng vo.</p>
+  <p><strong>Thông tin đơn hàng:</strong></p>
+  <p>→ Sản phẩm: <strong>${escapeHtml(productName)}</strong><br/>
+  → Số tiền: <strong>${escapeHtml(amountText)}</strong>${orderCode ? `<br/>→ Mã đơn: <strong>${escapeHtml(orderCode)}</strong>` : ""}</p>
+  <p><strong>Hướng dẫn nhận hàng:</strong></p>
+  <p>1) Giữ lại email này để đối chiếu.<br/>
+  2) Team sẽ liên hệ qua số điện thoại/Zalo đã đăng ký để chốt bước bàn giao.<br/>
+  3) Nếu cần kiểm tra trạng thái nhanh, vào <a href="${paymentUrl}">${paymentUrl}</a> và nhập đúng mã đơn.</p>
+  <p>Cảm ơn bạn đã tin tưởng. Team sẽ xử lý gọn, đúng việc, để bạn không mất thời gian.</p>
+  <p><strong>p/s:</strong> Nếu cần ưu tiên xử lý trong hôm nay, chỉ cần reply email này một dòng.</p>
+  <p>— Tuấn Anh</p>
+</div>`;
+
+  try {
+    await sendResendEmail(apiKey, {
+      from,
+      to,
+      subject,
+      html,
+      _logLabel: "order-created-confirmation",
+    });
+    return { ok: true };
+  } catch (e) {
+    console.error("[resend] sendOrderCreatedConfirmation failed:", {
+      message: e?.message || String(e),
+      response: e?.response || null,
+    });
+    throw e;
+  }
+}
+
 module.exports = {
   describeApiKeyResolution,
+  describeFromEmailResolution,
   loadResendApiKey,
+  loadResendFromEmail,
   sendResendEmail,
   escapeHtml,
   isLikelyEmail,
   notifyWaitlistSignup,
+  sendOrderCreatedConfirmation,
   logResendKeyStatus,
+  logResendFromStatus,
   maskApiKey,
 };

@@ -24,7 +24,7 @@ loadEnvFile(path.join(__dirname, ".env"));
 
 const { usePostgresStore } = require("./pg-store");
 const { handleApiPostgres } = require("./api-postgres");
-const { notifyWaitlistSignup } = require("./resend-mail");
+const { notifyWaitlistSignup, sendOrderCreatedConfirmation } = require("./resend-mail");
 const {
   runWaitlistSignupSequence,
   processDueJobsSqlite,
@@ -451,12 +451,25 @@ async function handleApi(req, res, url) {
         return sendJson(res, 400, { error: "Dữ liệu đơn hàng không hợp lệ" });
       }
 
+      let orderEmailContext = null;
       withTransaction(() => {
         const product = db
           .prepare("SELECT id, stock_quantity FROM products WHERE id = ?")
           .get(productId);
         if (!product) throw new Error("Sản phẩm không tồn tại");
         if (product.stock_quantity <= 0) throw new Error("Sản phẩm đã hết hàng");
+        const customer = db
+          .prepare("SELECT id, name, email FROM customers WHERE id = ?")
+          .get(customerId);
+        if (!customer) throw new Error("Khách hàng không tồn tại");
+        const productInfo = db
+          .prepare("SELECT id, name FROM products WHERE id = ?")
+          .get(productId);
+        orderEmailContext = {
+          customerName: customer.name || "",
+          customerEmail: String(customer.email || "").trim(),
+          productName: productInfo?.name || "",
+        };
 
         db.prepare(
           "INSERT INTO orders(customer_id, product_id, amount, status, order_code, purchased_at) VALUES (?, ?, ?, ?, ?, COALESCE(?, datetime('now')))"
@@ -464,6 +477,23 @@ async function handleApi(req, res, url) {
 
         db.prepare("UPDATE products SET stock_quantity = stock_quantity - 1 WHERE id = ?").run(productId);
       });
+      try {
+        await sendOrderCreatedConfirmation({
+          customerName: orderEmailContext?.customerName,
+          customerEmail: orderEmailContext?.customerEmail,
+          productName: orderEmailContext?.productName,
+          amount,
+          orderCode,
+        });
+      } catch (e) {
+        console.error("[email-flow] order confirmation failed", {
+          message: e?.message || String(e),
+          response: e?.response || null,
+          orderCode,
+          customerId,
+          productId,
+        });
+      }
 
       return sendJson(res, 201, { ok: true, order_code: orderCode });
     }
