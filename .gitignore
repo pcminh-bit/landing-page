@@ -5,6 +5,7 @@ node_modules/
 .env.*
 !.env.example
 resend_config.txt
+brain.db
 
 # OS / editor artifacts
 desktop.ini
