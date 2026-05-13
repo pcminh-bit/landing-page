@@ -1,0 +1,18 @@
+[Unit]
+Description=MCP server (GoClaw streamable-http) for landing-page tools
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/my-website
+ExecStart=/usr/bin/node /opt/my-website/mcp/server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=-/opt/my-website/.env
+Environment=MCP_HOST=127.0.0.1
+Environment=MCP_PORT=3001
+Environment=LANDING_BRAIN_DB=/opt/my-website/brain.db
+
+[Install]
+WantedBy=multi-user.target

@@ -5,7 +5,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "node scripts/copy-admin-assets.js"
+    "build": "node scripts/copy-admin-assets.js",
+    "mcp": "node mcp/server.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4"
