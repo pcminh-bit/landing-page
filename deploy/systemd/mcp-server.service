@@ -10,7 +10,7 @@ Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
 EnvironmentFile=-/opt/my-website/.env
-Environment=MCP_HOST=127.0.0.1
+Environment=MCP_HOST=0.0.0.0
 Environment=MCP_PORT=3001
 Environment=LANDING_BRAIN_DB=/opt/my-website/brain.db
 

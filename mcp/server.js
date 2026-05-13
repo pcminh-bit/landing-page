@@ -1,6 +1,6 @@
 /**
  * MCP Streamable HTTP server for GoClaw (see https://docs.goclaw.sh/advanced/mcp-integration.md).
- * Binds 127.0.0.1:3001, path POST /mcp — same brain.db as the landing app.
+ * Default bind 127.0.0.1 — set MCP_HOST=0.0.0.0 when GoClaw runs in Docker and reaches MCP via host bridge (e.g. http://172.17.0.1:3001/mcp).
  * Tools: waitlist_leads_recent, orders_pending_summary, order_confirm_payment
  */
 const http = require("node:http");
@@ -48,6 +48,13 @@ function allowedOrigin(origin) {
   if (o.startsWith("http://127.0.0.1")) return true;
   if (o.startsWith("http://localhost")) return true;
   if (o === "null") return true;
+  // Docker default bridge → host (GoClaw container calling host-published MCP)
+  if (o.startsWith("http://172.17.0.1")) return true;
+  const extras = String(process.env.MCP_EXTRA_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (extras.some((prefix) => o === prefix || o.startsWith(prefix))) return true;
   return false;
 }
 
