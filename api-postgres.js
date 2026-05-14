@@ -215,6 +215,7 @@ async function handleApiPostgres(req, res, url, deps) {
           email: lead.email,
           zalo: lead.zalo,
           registered_at: body.registered_at || nowSqliteStyle(),
+          goclaw_signal_02_notified: 0,
         });
       });
       const emailTasks = await Promise.allSettled([
@@ -415,6 +416,7 @@ async function handleApiPostgres(req, res, url, deps) {
           email: String(body.email || "").trim(),
           zalo,
           registered_at: nowSqliteStyle(),
+          goclaw_signal_02_notified: 0,
         });
         const productId = ensureDefaultProduct(snap);
         const id = nextId(snap.orders);

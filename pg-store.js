@@ -46,6 +46,15 @@ async function loadSnapshot(sql) {
   if (!Array.isArray(snap.customers)) snap.customers = [];
   if (!Array.isArray(snap.orders)) snap.orders = [];
   if (!Array.isArray(snap.email_sequence_jobs)) snap.email_sequence_jobs = [];
+  for (const c of snap.customers) {
+    if (
+      c &&
+      (c.goclaw_signal_02_notified === undefined ||
+        c.goclaw_signal_02_notified === null)
+    ) {
+      c.goclaw_signal_02_notified = 0;
+    }
+  }
   return snap;
 }
 

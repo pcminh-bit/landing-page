@@ -1,8 +1,8 @@
 # MCP functions draft — Telegram / daily ops
 
-Dựa trên codebase hiện tại: landing + form waitlist (`POST /api/customers`), admin CRUD (`/api/customers`, `/api/orders`), thanh toán + SePay. Chỉ giữ **3 function** đã chọn.
+Dựa trên codebase hiện tại: landing + form waitlist (`POST /api/customers`), admin CRUD, thanh toán + SePay. **5 tool MCP** (3 ban đầu + 2 Tín hiệu 02).
 
-Các function giả định MCP gọi được backend (HTTP nội bộ hoặc wrapper có auth), không expose secret ra Telegram.
+Các function MCP đọc/ghi trực tiếp `brain.db` (process riêng), không expose secret ra Telegram.
 
 ---
 
@@ -62,11 +62,38 @@ Các function giả định MCP gọi được backend (HTTP nội bộ hoặc w
 
 ---
 
+## 4. `waitlist_signal_02_pending`
+
+| Trường | Nội dung |
+|--------|----------|
+| **Input** | `limit` (int, mặc định 10, tối đa 50) |
+| **Output** | `{ "leads": [...], "count", "signal": "02" }` — `customers` có `goclaw_signal_02_notified = 0`, `ORDER BY id ASC` |
+| **Tình huống** | GoClaw schedule/heartbeat: agent gọi tool → nếu `count > 0` thì nhắn bạn trên Telegram (Tín hiệu 02). |
+| **Ưu tiên** | **5** |
+
+### Ví dụ câu / lịch
+
+- Cron 3 phút: “Kiểm tra Tín hiệu 02, pending limit 10.”
+
+---
+
+## 5. `waitlist_signal_02_mark_sent`
+
+| Trường | Nội dung |
+|--------|----------|
+| **Input** | `customer_ids` (array int, bắt buộc) |
+| **Output** | `{ "ok", "updated", "customer_ids" }` — set `goclaw_signal_02_notified = 1` |
+| **Tình huống** | Sau khi đã gửi Telegram xong các lead vừa báo — tránh nhắn trùng. |
+| **Ưu tiên** | **5** |
+
+---
+
 ## Thứ tự gợi ý triển khai
 
-1. `waitlist_leads_recent`  
-2. `orders_pending_summary`  
-3. `order_confirm_payment`  
+1. `waitlist_signal_02_pending` / `waitlist_signal_02_mark_sent` (nhắn lead mới)  
+2. `waitlist_leads_recent`  
+3. `orders_pending_summary`  
+4. `order_confirm_payment`  
 
 ---
 

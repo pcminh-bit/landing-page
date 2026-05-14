@@ -100,6 +100,11 @@ function ensureColumn(tableName, columnName, columnDef) {
 ensureColumn("orders", "order_code", "TEXT");
 db.exec("CREATE INDEX IF NOT EXISTS idx_orders_order_code ON orders(order_code)");
 ensureColumn("customers", "email", "TEXT");
+ensureColumn(
+  "customers",
+  "goclaw_signal_02_notified",
+  "INTEGER NOT NULL DEFAULT 0"
+);
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS email_sequence_jobs (

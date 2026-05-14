@@ -1,7 +1,8 @@
 /**
  * MCP Streamable HTTP server for GoClaw (see https://docs.goclaw.sh/advanced/mcp-integration.md).
  * Default bind 127.0.0.1 — set MCP_HOST=0.0.0.0 when GoClaw runs in Docker and reaches MCP via host bridge (e.g. http://172.17.0.1:3001/mcp).
- * Tools: waitlist_leads_recent, orders_pending_summary, order_confirm_payment
+ * Tools: waitlist_leads_recent, orders_pending_summary, order_confirm_payment,
+ *        waitlist_signal_02_pending, waitlist_signal_02_mark_sent
  */
 const http = require("node:http");
 const path = require("node:path");
@@ -34,10 +35,19 @@ function loadEnvIfPresent() {
 loadEnvIfPresent();
 
 let db;
+function ensureCustomerSignal02Column(d) {
+  const cols = d.prepare("PRAGMA table_info(customers)").all();
+  if (!cols.some((col) => col.name === "goclaw_signal_02_notified")) {
+    d.exec(
+      "ALTER TABLE customers ADD COLUMN goclaw_signal_02_notified INTEGER NOT NULL DEFAULT 0"
+    );
+  }
+}
 function getDb() {
   if (!db) {
     db = new DatabaseSync(BRAIN_DB);
     db.exec("PRAGMA foreign_keys = ON;");
+    ensureCustomerSignal02Column(db);
   }
   return db;
 }
@@ -140,9 +150,39 @@ function handleToolsList() {
           additionalProperties: false,
         },
       },
-    ],
-  };
-}
+      {
+        name: "waitlist_signal_02_pending",
+        description:
+          "Tín hiệu 02 — lead waitlist chưa được nhắn Telegram (goclaw_signal_02_notified = 0).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            limit: {
+              type: "integer",
+              description: "Tối đa bản ghi (mặc định 10, tối đa 50).",
+              default: 10,
+            },
+          },
+          additionalProperties: false,
+        },
+      },
+      {
+        name: "waitlist_signal_02_mark_sent",
+        description:
+          "Đánh dấu đã nhắn Tín hiệu 02 cho các customer_id (tránh nhắn trùng).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            customer_ids: {
+              type: "array",
+              items: { type: "integer" },
+              description: "Danh sách customers.id đã nhắn.",
+            },
+          },
+          required: ["customer_ids"],
+          additionalProperties: false,
+        },
+      },
 
 function waitlistLeadsRecent(args) {
   const sinceHours = Math.min(
@@ -215,6 +255,39 @@ function orderConfirmPayment(args) {
   return { ok: true, order_id: orderId, status: "success" };
 }
 
+function waitlistSignal02Pending(args) {
+  const limit = Math.min(50, Math.max(1, Number(args.limit ?? 10) || 10));
+  const d = getDb();
+  const leads = d
+    .prepare(
+      `SELECT id, name, email, phone, zalo, registered_at
+       FROM customers
+       WHERE COALESCE(goclaw_signal_02_notified, 0) = 0
+       ORDER BY id ASC
+       LIMIT ?`
+    )
+    .all(limit);
+  return { leads, count: leads.length, signal: "02" };
+}
+
+function waitlistSignal02MarkSent(args) {
+  const raw = args.customer_ids;
+  const ids = Array.isArray(raw)
+    ? [...new Set(raw.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0)))]
+    : [];
+  if (!ids.length) {
+    return { ok: false, error: "customer_ids rỗng hoặc không hợp lệ" };
+  }
+  const d = getDb();
+  const placeholders = ids.map(() => "?").join(", ");
+  const info = d
+    .prepare(
+      `UPDATE customers SET goclaw_signal_02_notified = 1 WHERE id IN (${placeholders})`
+    )
+    .run(...ids);
+  return { ok: true, updated: Number(info.changes), customer_ids: ids };
+}
+
 function handleToolsCall(params) {
   const name = params?.name;
   const args = params?.arguments && typeof params.arguments === "object"
@@ -228,6 +301,12 @@ function handleToolsCall(params) {
   }
   if (name === "order_confirm_payment") {
     return toolTextResult(orderConfirmPayment(args));
+  }
+  if (name === "waitlist_signal_02_pending") {
+    return toolTextResult(waitlistSignal02Pending(args));
+  }
+  if (name === "waitlist_signal_02_mark_sent") {
+    return toolTextResult(waitlistSignal02MarkSent(args));
   }
   throw new Error(`Unknown tool: ${name}`);
 }

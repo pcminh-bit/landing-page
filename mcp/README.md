@@ -58,7 +58,7 @@ sudo ufw allow from 172.17.0.0/16 to any port 3001 proto tcp comment mcp-docker-
 
 ## Tools
 
-Đúng 3 function trong `mcp_functions_draft.md`: `waitlist_leads_recent`, `orders_pending_summary`, `order_confirm_payment`.
+Xem `mcp_functions_draft.md`. Gồm: `waitlist_leads_recent`, `orders_pending_summary`, `order_confirm_payment`, và **Tín hiệu 02:** `waitlist_signal_02_pending`, `waitlist_signal_02_mark_sent` (cột `customers.goclaw_signal_02_notified`).
 
 ## Kiểm tra nhanh (curl)
 
