@@ -6,6 +6,7 @@ node_modules/
 !.env.example
 resend_config.txt
 brain.db
+vault-ready/
 
 # OS / editor artifacts
 desktop.ini
