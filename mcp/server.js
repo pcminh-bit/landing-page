@@ -183,6 +183,9 @@ function handleToolsList() {
           additionalProperties: false,
         },
       },
+    ],
+  };
+}
 
 function waitlistLeadsRecent(args) {
   const sinceHours = Math.min(
@@ -273,7 +276,7 @@ function waitlistSignal02Pending(args) {
 function waitlistSignal02MarkSent(args) {
   const raw = args.customer_ids;
   const ids = Array.isArray(raw)
-    ? [...new Set(raw.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0)))]
+    ? [...new Set(raw.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0))]
     : [];
   if (!ids.length) {
     return { ok: false, error: "customer_ids rỗng hoặc không hợp lệ" };
