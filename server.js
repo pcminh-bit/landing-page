@@ -244,7 +244,9 @@ function serveStaticFile(res, filePath) {
 
   fs.readFile(normalized, (err, data) => {
     if (err) {
-      sendJson(res, 404, { error: "File not found" });
+      const msg =
+        err.code === "EACCES" ? "Permission denied" : "File not found";
+      sendJson(res, err.code === "EACCES" ? 403 : 404, { error: msg });
       return;
     }
     const ext = path.extname(normalized).toLowerCase();
@@ -438,6 +440,25 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, {
         postgres: Boolean(process.env.DATABASE_URL),
         vercel: Boolean(process.env.VERCEL),
+      });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/digital-health") {
+      const indexPath = resolveDigitalProductPath("index.html");
+      let readable = false;
+      if (indexPath) {
+        try {
+          fs.accessSync(indexPath, fs.constants.R_OK);
+          readable = true;
+        } catch {
+          readable = false;
+        }
+      }
+      return sendJson(res, 200, {
+        root: ROOT,
+        uid: process.getuid?.() ?? null,
+        indexPath,
+        readable,
       });
     }
 
