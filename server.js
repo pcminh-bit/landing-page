@@ -194,6 +194,43 @@ async function readJsonBodyWithRaw(req) {
 }
 
 
+const DIGITAL_PRODUCT_SLUG = "linkedin-easy-posting-machine";
+
+function resolveDigitalProductPath(pageFile) {
+  const base = path.join("san-pham", DIGITAL_PRODUCT_SLUG);
+  const candidates = [
+    path.join(ROOT, base, pageFile),
+    path.join(PUBLIC_DIR, base, pageFile),
+  ];
+  if (pageFile === "checkout.html") {
+    candidates.push(path.join(PUBLIC_DIR, base, "checkout", "index.html"));
+  }
+  if (pageFile === "cam-on.html") {
+    candidates.push(path.join(PUBLIC_DIR, base, "cam-on", "index.html"));
+  }
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function resolveDigitalProductAsset(assetRel) {
+  const safe = assetRel.replace(/\.\./g, "");
+  const bases = [
+    path.join(ROOT, "san-pham", DIGITAL_PRODUCT_SLUG),
+    path.join(PUBLIC_DIR, "san-pham", DIGITAL_PRODUCT_SLUG),
+  ];
+  for (const base of bases) {
+    const assetPath = path.join(base, safe);
+    if (fs.existsSync(assetPath) && fs.statSync(assetPath).isFile()) {
+      return assetPath;
+    }
+  }
+  return null;
+}
+
 function serveStaticFile(res, filePath) {
   const normalized = path.normalize(filePath);
   const isInProject = normalized.startsWith(path.normalize(ROOT));
@@ -835,23 +872,19 @@ async function handleRequest(req, res) {
   };
   const digitalPage = digitalPageMap[url.pathname];
   if (digitalPage) {
-    return serveStaticFile(
-      res,
-      path.join(ROOT, "san-pham", "linkedin-easy-posting-machine", digitalPage)
-    );
+    const resolved = resolveDigitalProductPath(digitalPage);
+    if (resolved) {
+      return serveStaticFile(res, resolved);
+    }
+    return sendJson(res, 404, { error: "File not found" });
   }
   if (url.pathname.startsWith("/san-pham/linkedin-easy-posting-machine/")) {
     const assetRel = url.pathname.replace(
       "/san-pham/linkedin-easy-posting-machine/",
       ""
     );
-    const assetPath = path.join(
-      ROOT,
-      "san-pham",
-      "linkedin-easy-posting-machine",
-      assetRel
-    );
-    if (fs.existsSync(assetPath) && fs.statSync(assetPath).isFile()) {
+    const assetPath = resolveDigitalProductAsset(assetRel);
+    if (assetPath) {
       return serveStaticFile(res, assetPath);
     }
   }
