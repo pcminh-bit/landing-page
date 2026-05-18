@@ -21,6 +21,7 @@ function loadEnvFile(envPath) {
 }
 
 loadEnvFile(path.join(__dirname, ".env"));
+loadEnvFile(path.join(__dirname, ".env.production"));
 
 const { usePostgresStore } = require("./pg-store");
 const { handleApiPostgres } = require("./api-postgres");
@@ -876,6 +877,14 @@ async function handleRequest(req, res) {
     if (resolved) {
       return serveStaticFile(res, resolved);
     }
+    console.error(
+      "[digital] missing file",
+      digitalPage,
+      "ROOT=",
+      ROOT,
+      "uid=",
+      process.getuid?.()
+    );
     return sendJson(res, 404, { error: "File not found" });
   }
   if (url.pathname.startsWith("/san-pham/linkedin-easy-posting-machine/")) {
@@ -910,9 +919,28 @@ async function handleRequest(req, res) {
 
   const rootPath = path.join(ROOT, requested);
   if (fs.existsSync(rootPath)) {
-    return serveStaticFile(res, rootPath);
+    if (fs.statSync(rootPath).isFile()) {
+      return serveStaticFile(res, rootPath);
+    }
+    if (fs.statSync(rootPath).isDirectory()) {
+      const indexPath = path.join(rootPath, "index.html");
+      if (fs.existsSync(indexPath)) {
+        return serveStaticFile(res, indexPath);
+      }
+    }
   }
-  return serveStaticFile(res, publicPath);
+  if (fs.existsSync(publicPath)) {
+    if (fs.statSync(publicPath).isFile()) {
+      return serveStaticFile(res, publicPath);
+    }
+    if (fs.statSync(publicPath).isDirectory()) {
+      const indexPath = path.join(publicPath, "index.html");
+      if (fs.existsSync(indexPath)) {
+        return serveStaticFile(res, indexPath);
+      }
+    }
+  }
+  return sendJson(res, 404, { error: "Not found" });
 }
 
 module.exports = handleRequest;
