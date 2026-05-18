@@ -54,6 +54,19 @@ function getJson(u) {
 }
 
 (async () => {
-  console.log(await getJson("/api/digital-health"));
-  console.log(await getJson("/san-pham/linkedin-easy-posting-machine/"));
+  const health = await getJson("/api/digital-health");
+  const page = await getJson("/san-pham/linkedin-easy-posting-machine/");
+  console.log(health);
+  console.log(page);
+  const buildId = health.json?.buildId;
+  if (health.status === 404 || buildId !== "2026-05-18-digital-v2") {
+    console.error(
+      "\n>>> Process trên :3000 CHƯA chạy code mới (hoặc không phải landing-page)."
+    );
+    console.error(">>> Chạy: bash scripts/restart-landing-page.sh");
+    process.exitCode = 1;
+  } else if (!health.json?.readable || page.status !== 200) {
+    console.error("\n>>> Code mới OK nhưng file chưa đọc được hoặc trang vẫn lỗi.");
+    process.exitCode = 1;
+  }
 })();

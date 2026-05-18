@@ -195,6 +195,7 @@ async function readJsonBodyWithRaw(req) {
 }
 
 
+const SERVER_BUILD_ID = "2026-05-18-digital-v2";
 const DIGITAL_PRODUCT_SLUG = "linkedin-easy-posting-machine";
 
 function resolveDigitalProductPath(pageFile) {
@@ -438,6 +439,7 @@ async function handleApi(req, res, url) {
 
     if (req.method === "GET" && url.pathname === "/api/store-info") {
       return sendJson(res, 200, {
+        buildId: SERVER_BUILD_ID,
         postgres: Boolean(process.env.DATABASE_URL),
         vercel: Boolean(process.env.VERCEL),
       });
@@ -455,6 +457,7 @@ async function handleApi(req, res, url) {
         }
       }
       return sendJson(res, 200, {
+        buildId: SERVER_BUILD_ID,
         root: ROOT,
         uid: process.getuid?.() ?? null,
         indexPath,
