@@ -483,6 +483,65 @@ async function sendOrderCreatedConfirmation(order) {
   }
 }
 
+/**
+ * Gửi link tải sản phẩm số sau khi thanh toán thành công.
+ * @param {{ customerName?: string; customerEmail?: string; productName?: string; downloadUrl?: string }} payload
+ */
+async function sendDigitalProductDelivery(payload) {
+  logResendKeyStatus("sendDigitalProductDelivery");
+  logResendFromStatus("sendDigitalProductDelivery");
+  const apiKey = loadResendApiKey();
+  const from = String(loadResendFromEmail() || "").trim();
+  const to = String(payload.customerEmail || "").trim();
+
+  if (!apiKey || !from) {
+    console.warn("[resend] Skip digital delivery: thiếu API key hoặc RESEND_FROM_EMAIL");
+    return { skipped: true, reason: "missing_sender_or_key" };
+  }
+  if (!isLikelyEmail(to)) {
+    console.warn("[resend] Skip digital delivery: email khách không hợp lệ.", { to: to || "(trống)" });
+    return { skipped: true, reason: "invalid_customer_email" };
+  }
+
+  const customerName = String(payload.customerName || "").trim() || "bạn";
+  const productName = String(payload.productName || "").trim() || "sản phẩm số";
+  const downloadUrl = String(payload.downloadUrl || "").trim();
+  if (!downloadUrl) {
+    console.warn("[resend] Skip digital delivery: thiếu downloadUrl");
+    return { skipped: true, reason: "missing_download_url" };
+  }
+
+  const subject = `${productName} — File của bạn đã sẵn sàng`;
+  const html = `
+<div style="font-family:system-ui,sans-serif;line-height:1.6;color:#111827;font-size:16px;">
+  <p>Chào ${escapeHtml(customerName)},</p>
+  <p>Cảm ơn bạn đã mua <strong>${escapeHtml(productName)}</strong>.</p>
+  <p>Bấm vào link dưới để tải file về máy:</p>
+  <p><a href="${escapeHtml(downloadUrl)}" style="color:#e50913;font-weight:600;">Tải sản phẩm (ZIP)</a></p>
+  <p style="color:#6b7280;font-size:14px;">Lưu email này nếu cần tải lại sau.</p>
+  <p>Nếu cần hỗ trợ: reply email này hoặc Zalo trên website.</p>
+  <p>Trần Tuấn Anh<br/><a href="https://www.hocbong-upgrad.com">hocbong-upgrad.com</a></p>
+</div>`;
+
+  try {
+    await sendResendEmail(apiKey, {
+      from,
+      to,
+      subject,
+      html,
+      text: `Chào ${customerName},\n\nCảm ơn bạn đã mua ${productName}.\n\nTải file: ${downloadUrl}\n\nTrần Tuấn Anh`,
+      _logLabel: "digital-product-delivery",
+    });
+    return { ok: true };
+  } catch (e) {
+    console.error("[resend] sendDigitalProductDelivery failed:", {
+      message: e?.message || String(e),
+      response: e?.response || null,
+    });
+    throw e;
+  }
+}
+
 module.exports = {
   describeApiKeyResolution,
   describeFromEmailResolution,
@@ -493,6 +552,7 @@ module.exports = {
   isLikelyEmail,
   notifyWaitlistSignup,
   sendOrderCreatedConfirmation,
+  sendDigitalProductDelivery,
   logResendKeyStatus,
   logResendFromStatus,
   maskApiKey,

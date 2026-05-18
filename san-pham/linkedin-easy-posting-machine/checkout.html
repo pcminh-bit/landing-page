@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thanh toán · LinkedIn Easy Posting Machine</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/san-pham/linkedin-easy-posting-machine/product.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <span class="badge">Checkout</span>
+      <h1 id="productTitle">LinkedIn Easy Posting Machine</h1>
+      <p class="tagline" id="productTagline">Đang tải…</p>
+      <p class="price" id="productPrice" style="margin-bottom:20px;"></p>
+
+      <form id="checkoutForm" class="form-grid">
+        <input id="customerName" name="name" required placeholder="Họ và tên *" autocomplete="name" />
+        <input id="customerEmail" name="email" type="email" required placeholder="Email nhận file *" autocomplete="email" />
+        <input id="customerPhone" name="phone" placeholder="Số điện thoại (tuỳ chọn)" inputmode="tel" />
+        <button type="submit" class="btn" id="submitBtn">Thanh toán 497.000 VND</button>
+      </form>
+      <p class="muted" id="formNote">Sau khi gửi, quét QR và chuyển khoản đúng nội dung mã đơn.</p>
+
+      <div id="payArea" class="hidden" style="margin-top:24px;text-align:center;">
+        <img class="qr" src="/assets/qr-sepay.png" alt="QR Sepay" />
+        <p style="font-weight:600;margin-top:14px;">Nội dung chuyển khoản:</p>
+        <p class="code" id="orderCodeText"></p>
+        <button type="button" class="btn btn-secondary" id="copyCodeBtn" style="max-width:200px;margin:12px auto 0;">Sao chép mã</button>
+        <p class="muted" id="pollStatus" style="margin-top:12px;"></p>
+      </div>
+
+      <a class="back" href="/san-pham/linkedin-easy-posting-machine/">← Quay lại trang sản phẩm</a>
+    </div>
+  </div>
+  <script src="/san-pham/linkedin-easy-posting-machine/digital-checkout.js"></script>
+  <script>
+    (function () {
+      const { formatVnd, fetchProduct, createDigitalOrder, pollOrderStatus } = DigitalCheckout;
+      const form = document.getElementById("checkoutForm");
+      const submitBtn = document.getElementById("submitBtn");
+      const payArea = document.getElementById("payArea");
+      const formNote = document.getElementById("formNote");
+      const orderCodeText = document.getElementById("orderCodeText");
+      const pollStatus = document.getElementById("pollStatus");
+      const copyBtn = document.getElementById("copyCodeBtn");
+      let stopPoll = null;
+      let catalog = null;
+
+      fetchProduct()
+        .then((p) => {
+          catalog = p;
+          document.getElementById("productTagline").textContent = p.tagline;
+          document.getElementById("productPrice").textContent = formatVnd(p.price);
+          submitBtn.textContent = "Thanh toán " + formatVnd(p.price);
+        })
+        .catch((e) => {
+          formNote.textContent = e.message;
+        });
+
+      copyBtn.addEventListener("click", async () => {
+        const t = orderCodeText.textContent.trim();
+        if (!t) return;
+        try {
+          await navigator.clipboard.writeText(t);
+          copyBtn.textContent = "Đã chép";
+          setTimeout(() => { copyBtn.textContent = "Sao chép mã"; }, 2000);
+        } catch (_) {
+          copyBtn.textContent = "Không chép được";
+        }
+      });
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (stopPoll) stopPoll();
+        const name = document.getElementById("customerName").value.trim();
+        const email = document.getElementById("customerEmail").value.trim();
+        const phone = document.getElementById("customerPhone").value.trim();
+        if (!name || !email) {
+          formNote.textContent = "Nhập họ tên và email.";
+          return;
+        }
+        submitBtn.disabled = true;
+        formNote.textContent = "Đang tạo đơn…";
+        try {
+          const data = await createDigitalOrder({ name, email, phone });
+          orderCodeText.textContent = data.order_code;
+          payArea.classList.remove("hidden");
+          formNote.textContent =
+            "Chuyển khoản đúng số tiền " + formatVnd(data.amount) + " và nội dung: " + data.order_code;
+          pollStatus.textContent = "Đang chờ xác nhận chuyển khoản…";
+          stopPoll = pollOrderStatus(data.order_code, (status) => {
+            const thanks =
+              "/san-pham/linkedin-easy-posting-machine/cam-on?order_code=" +
+              encodeURIComponent(data.order_code);
+            window.location.href = thanks;
+          });
+        } catch (err) {
+          formNote.textContent = err.message || "Lỗi tạo đơn.";
+          submitBtn.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

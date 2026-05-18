@@ -24,7 +24,25 @@ loadEnvFile(path.join(__dirname, ".env"));
 
 const { usePostgresStore } = require("./pg-store");
 const { handleApiPostgres } = require("./api-postgres");
-const { notifyWaitlistSignup, sendOrderCreatedConfirmation } = require("./resend-mail");
+const {
+  notifyWaitlistSignup,
+  sendOrderCreatedConfirmation,
+  sendDigitalProductDelivery,
+} = require("./resend-mail");
+const { getDigitalProduct } = require("./digital-products");
+const {
+  generateDownloadToken,
+  resolveZipPath,
+  buildDownloadUrl,
+  paymentStatusPayload,
+  streamZipDownload,
+  ensureDownloadTokenSqlite,
+  getOrderByCodeSqlite,
+  getOrderByTokenSqlite,
+  markDeliverySentSqlite,
+  ensureDownloadTokenSnapshot,
+  findOrderInSnapshot,
+} = require("./digital-commerce");
 const {
   runWaitlistSignupSequence,
   processDueJobsSqlite,
@@ -99,6 +117,9 @@ function ensureColumn(tableName, columnName, columnDef) {
 
 ensureColumn("orders", "order_code", "TEXT");
 db.exec("CREATE INDEX IF NOT EXISTS idx_orders_order_code ON orders(order_code)");
+ensureColumn("orders", "digital_slug", "TEXT");
+ensureColumn("orders", "download_token", "TEXT");
+ensureColumn("orders", "digital_delivery_sent", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("customers", "email", "TEXT");
 ensureColumn(
   "customers",
@@ -128,6 +149,7 @@ const MIME_TYPES = {
   ".jpeg": "image/jpeg",
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
+  ".zip": "application/zip",
 };
 
 function sendJson(res, status, payload) {
@@ -297,6 +319,60 @@ function ensureDefaultProductId() {
     )
     .run("Thanh toan hoc bong", 1000, "San pham mac dinh cho thanh toan online", 999999);
   return Number(result.lastInsertRowid);
+}
+
+function ensureCatalogProductId(catalog) {
+  const name = String(catalog.name || "San pham so").trim();
+  let row = db.prepare("SELECT id FROM products WHERE name = ? LIMIT 1").get(name);
+  if (row) return row.id;
+  const result = db
+    .prepare(
+      "INSERT INTO products(name, price, description, stock_quantity) VALUES (?, ?, ?, ?)"
+    )
+    .run(
+      name,
+      Number(catalog.price) || 0,
+      catalog.tagline || "San pham so",
+      999999
+    );
+  return Number(result.lastInsertRowid);
+}
+
+async function tryFulfillDigitalOrder(req, orderId) {
+  const row = db
+    .prepare(
+      `SELECT o.id, o.digital_slug, o.download_token, o.digital_delivery_sent, o.status,
+              c.name AS customer_name, c.email AS customer_email
+       FROM orders o
+       LEFT JOIN customers c ON c.id = o.customer_id
+       WHERE o.id = ? LIMIT 1`
+    )
+    .get(orderId);
+  if (!row?.digital_slug || row.status !== "success") return;
+  ensureDownloadTokenSqlite(db, orderId);
+  const fresh = db
+    .prepare(
+      `SELECT o.id, o.digital_slug, o.download_token, o.digital_delivery_sent,
+              c.name AS customer_name, c.email AS customer_email
+       FROM orders o
+       LEFT JOIN customers c ON c.id = o.customer_id
+       WHERE o.id = ? LIMIT 1`
+    )
+    .get(orderId);
+  if (!fresh?.download_token || fresh.digital_delivery_sent) return;
+  const catalog = getDigitalProduct(fresh.digital_slug);
+  const downloadUrl = buildDownloadUrl(req, fresh.download_token);
+  try {
+    await sendDigitalProductDelivery({
+      customerName: fresh.customer_name,
+      customerEmail: fresh.customer_email,
+      productName: catalog?.name || fresh.digital_slug,
+      downloadUrl,
+    });
+    markDeliverySentSqlite(db, orderId);
+  } catch (e) {
+    console.error("[digital] delivery email failed", e?.message || e);
+  }
 }
 
 async function handleApi(req, res, url) {
@@ -548,19 +624,86 @@ async function handleApi(req, res, url) {
       if (!code) {
         return sendJson(res, 400, { error: "Thiếu order_code" });
       }
-      const row = db
-        .prepare(
-          "SELECT id, status, order_code, amount FROM orders WHERE UPPER(TRIM(order_code)) = ? LIMIT 1"
-        )
-        .get(code);
+      let row = getOrderByCodeSqlite(db, code);
       if (!row) {
         return sendJson(res, 404, { error: "Không tìm thấy đơn với mã này." });
+      }
+      if (row.digital_slug && row.status === "success") {
+        ensureDownloadTokenSqlite(db, row.id);
+        await tryFulfillDigitalOrder(req, row.id);
+        row = getOrderByCodeSqlite(db, code);
+        return sendJson(
+          res,
+          200,
+          paymentStatusPayload(req, row, getDigitalProduct(row.digital_slug))
+        );
       }
       return sendJson(res, 200, {
         order_id: row.id,
         order_code: row.order_code,
         status: row.status,
         amount: row.amount,
+      });
+    }
+
+    const digitalProductMatch = url.pathname.match(
+      /^\/api\/digital-products\/([a-z0-9-]+)\/?$/
+    );
+    if (req.method === "GET" && digitalProductMatch) {
+      const catalog = getDigitalProduct(digitalProductMatch[1]);
+      if (!catalog) {
+        return sendJson(res, 404, { error: "Không tìm thấy sản phẩm." });
+      }
+      return sendJson(res, 200, {
+        slug: catalog.slug,
+        name: catalog.name,
+        tagline: catalog.tagline,
+        price: catalog.price,
+        paths: catalog.paths,
+      });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/digital-payment-orders") {
+      const body = await readJsonBody(req);
+      const slug = String(body.slug || "").trim();
+      const catalog = getDigitalProduct(slug);
+      if (!catalog) {
+        return sendJson(res, 400, { error: "Sản phẩm không hợp lệ." });
+      }
+      const name = String(body.name || "").trim();
+      const email = String(body.email || "").trim();
+      const phone = String(body.phone || "").trim();
+      const zalo = String(body.zalo || "").trim();
+      if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return sendJson(res, 400, { error: "Vui lòng nhập họ tên và email hợp lệ." });
+      }
+
+      const orderCode = generateOrderCode();
+      const amount = Number(catalog.price);
+      const result = withTransaction(() => {
+        const customerInsert = db
+          .prepare(
+            "INSERT INTO customers(name, phone, email, zalo, registered_at) VALUES (?, ?, ?, ?, datetime('now'))"
+          )
+          .run(name, phone, email, zalo);
+        const customerId = Number(customerInsert.lastInsertRowid);
+        const productId = ensureCatalogProductId(catalog);
+        const orderInsert = db
+          .prepare(
+            `INSERT INTO orders(customer_id, product_id, amount, status, order_code, purchased_at, digital_slug)
+             VALUES (?, ?, ?, 'pending', ?, datetime('now'), ?)`
+          )
+          .run(customerId, productId, amount, orderCode, slug);
+        return Number(orderInsert.lastInsertRowid);
+      });
+
+      return sendJson(res, 201, {
+        success: true,
+        order_id: result,
+        order_code: orderCode,
+        amount,
+        product_slug: slug,
+        checkout_url: `${catalog.paths.checkout}?order_code=${encodeURIComponent(orderCode)}`,
       });
     }
 
@@ -626,7 +769,32 @@ async function handleApi(req, res, url) {
         "UPDATE orders SET status = 'success' WHERE id = ? AND status = 'pending'"
       ).run(matchedOrder.id);
 
+      const digitalRow = db
+        .prepare("SELECT digital_slug FROM orders WHERE id = ? LIMIT 1")
+        .get(matchedOrder.id);
+      if (digitalRow?.digital_slug) {
+        ensureDownloadTokenSqlite(db, matchedOrder.id);
+        await tryFulfillDigitalOrder(req, matchedOrder.id);
+      }
+
       return sendJson(res, 200, { success: true, matched: true, order_id: matchedOrder.id });
+    }
+
+    const digitalDownloadMatch = url.pathname.match(
+      /^\/api\/digital-download\/([A-Za-z0-9]+)\/?$/
+    );
+    if (req.method === "GET" && digitalDownloadMatch) {
+      const token = digitalDownloadMatch[1];
+      const row = getOrderByTokenSqlite(db, token);
+      if (!row?.digital_slug) {
+        return sendJson(res, 403, { error: "Link không hợp lệ hoặc chưa thanh toán." });
+      }
+      const catalog = getDigitalProduct(row.digital_slug);
+      const zipPath = resolveZipPath(catalog);
+      if (!zipPath) {
+        return sendJson(res, 503, { error: "File sản phẩm chưa sẵn sàng trên server." });
+      }
+      return streamZipDownload(res, zipPath, catalog.zipFile);
     }
 
     return sendJson(res, 404, { error: "API not found" });
@@ -655,6 +823,37 @@ async function handleRequest(req, res) {
 
   if (url.pathname === "/payment") {
     return serveStaticFile(res, path.join(ROOT, "payment.html"));
+  }
+
+  const digitalPageMap = {
+    "/san-pham/linkedin-easy-posting-machine": "index.html",
+    "/san-pham/linkedin-easy-posting-machine/": "index.html",
+    "/san-pham/linkedin-easy-posting-machine/checkout": "checkout.html",
+    "/san-pham/linkedin-easy-posting-machine/checkout/": "checkout.html",
+    "/san-pham/linkedin-easy-posting-machine/cam-on": "cam-on.html",
+    "/san-pham/linkedin-easy-posting-machine/cam-on/": "cam-on.html",
+  };
+  const digitalPage = digitalPageMap[url.pathname];
+  if (digitalPage) {
+    return serveStaticFile(
+      res,
+      path.join(ROOT, "san-pham", "linkedin-easy-posting-machine", digitalPage)
+    );
+  }
+  if (url.pathname.startsWith("/san-pham/linkedin-easy-posting-machine/")) {
+    const assetRel = url.pathname.replace(
+      "/san-pham/linkedin-easy-posting-machine/",
+      ""
+    );
+    const assetPath = path.join(
+      ROOT,
+      "san-pham",
+      "linkedin-easy-posting-machine",
+      assetRel
+    );
+    if (fs.existsSync(assetPath) && fs.statSync(assetPath).isFile()) {
+      return serveStaticFile(res, assetPath);
+    }
   }
 
   if (url.pathname === "/" || url.pathname === "/index.html") {

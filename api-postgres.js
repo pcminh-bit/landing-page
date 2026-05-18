@@ -6,7 +6,24 @@ const {
   nextId,
   nowSqliteStyle,
 } = require("./pg-store");
-const { notifyWaitlistSignup, sendOrderCreatedConfirmation } = require("./resend-mail");
+const {
+  notifyWaitlistSignup,
+  sendOrderCreatedConfirmation,
+  sendDigitalProductDelivery,
+} = require("./resend-mail");
+const { getDigitalProduct } = require("./digital-products");
+const {
+  generateDownloadToken,
+  resolveZipPath,
+  buildDownloadUrl,
+  paymentStatusPayload,
+  streamZipDownload,
+  ensureDownloadTokenSnapshot,
+  getOrderByCodeSnapshot,
+  getOrderByTokenSnapshot,
+  ensureCatalogProductSnapshot,
+  findOrderInSnapshot,
+} = require("./digital-commerce");
 const {
   runWaitlistSignupSequence,
   processDueJobsPostgres,
@@ -89,6 +106,35 @@ function generateOrderCode() {
   const timestamp = Date.now().toString().slice(-6);
   const random = Math.floor(Math.random() * 900 + 100);
   return `DH${timestamp}${random}`;
+}
+
+async function tryFulfillDigitalOrderPg(req, sql, orderId, mutate) {
+  await mutate((snap) => {
+    ensureDownloadTokenSnapshot(snap, orderId);
+  });
+  const snap = await loadSnapshot(sql);
+  const found = findOrderInSnapshot(snap, orderId);
+  if (!found) return;
+  const { order, customer } = found;
+  if (!order.digital_slug || order.status !== "success" || order.digital_delivery_sent) {
+    return;
+  }
+  const catalog = getDigitalProduct(order.digital_slug);
+  const downloadUrl = buildDownloadUrl(req, order.download_token);
+  try {
+    await sendDigitalProductDelivery({
+      customerName: customer?.name,
+      customerEmail: customer?.email,
+      productName: catalog?.name || order.digital_slug,
+      downloadUrl,
+    });
+    await mutate((s) => {
+      const o = s.orders.find((x) => Number(x.id) === Number(orderId));
+      if (o) o.digital_delivery_sent = 1;
+    });
+  } catch (e) {
+    console.error("[digital] delivery email failed", e?.message || e);
+  }
 }
 
 async function handleApiPostgres(req, res, url, deps) {
@@ -382,17 +428,99 @@ async function handleApiPostgres(req, res, url, deps) {
         return sendJson(res, 400, { error: "Thiếu order_code" });
       }
       const snapshot = await loadSnapshot(sql);
-      const order = snapshot.orders.find(
-        (o) => String(o.order_code || "").trim().toUpperCase() === code
-      );
-      if (!order) {
+      let row = getOrderByCodeSnapshot(snapshot, code);
+      if (!row) {
         return sendJson(res, 404, { error: "Không tìm thấy đơn với mã này." });
       }
+      if (row.digital_slug && row.status === "success") {
+        await mutate((snap) => {
+          ensureDownloadTokenSnapshot(snap, row.id);
+        });
+        await tryFulfillDigitalOrderPg(req, sql, row.id, mutate);
+        const fresh = await loadSnapshot(sql);
+        row = getOrderByCodeSnapshot(fresh, code);
+        return sendJson(
+          res,
+          200,
+          paymentStatusPayload(req, row, getDigitalProduct(row.digital_slug))
+        );
+      }
       return sendJson(res, 200, {
-        order_id: order.id,
-        order_code: order.order_code,
-        status: order.status,
-        amount: order.amount,
+        order_id: row.id,
+        order_code: row.order_code,
+        status: row.status,
+        amount: row.amount,
+      });
+    }
+
+    const digitalProductMatch = url.pathname.match(
+      /^\/api\/digital-products\/([a-z0-9-]+)\/?$/
+    );
+    if (req.method === "GET" && digitalProductMatch) {
+      const catalog = getDigitalProduct(digitalProductMatch[1]);
+      if (!catalog) {
+        return sendJson(res, 404, { error: "Không tìm thấy sản phẩm." });
+      }
+      return sendJson(res, 200, {
+        slug: catalog.slug,
+        name: catalog.name,
+        tagline: catalog.tagline,
+        price: catalog.price,
+        paths: catalog.paths,
+      });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/digital-payment-orders") {
+      const body = await readJsonBody(req);
+      const slug = String(body.slug || "").trim();
+      const catalog = getDigitalProduct(slug);
+      if (!catalog) {
+        return sendJson(res, 400, { error: "Sản phẩm không hợp lệ." });
+      }
+      const name = String(body.name || "").trim();
+      const email = String(body.email || "").trim();
+      const phone = String(body.phone || "").trim();
+      const zalo = String(body.zalo || "").trim();
+      if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return sendJson(res, 400, { error: "Vui lòng nhập họ tên và email hợp lệ." });
+      }
+
+      const orderCode = generateOrderCode();
+      const amount = Number(catalog.price);
+      const orderId = await mutate((snap) => {
+        const customerId = nextId(snap.customers);
+        snap.customers.push({
+          id: customerId,
+          name,
+          phone,
+          email,
+          zalo,
+          registered_at: nowSqliteStyle(),
+          goclaw_signal_02_notified: 0,
+        });
+        const productId = ensureCatalogProductSnapshot(snap, catalog);
+        const id = nextId(snap.orders);
+        snap.orders.push({
+          id,
+          customer_id: customerId,
+          product_id: productId,
+          amount,
+          status: "pending",
+          order_code: orderCode,
+          purchased_at: nowSqliteStyle(),
+          digital_slug: slug,
+          download_token: null,
+          digital_delivery_sent: 0,
+        });
+        return id;
+      });
+
+      return sendJson(res, 201, {
+        success: true,
+        order_id: orderId,
+        order_code: orderCode,
+        amount,
+        product_slug: slug,
       });
     }
 
@@ -472,7 +600,29 @@ async function handleApiPostgres(req, res, url, deps) {
         if (o) o.status = "success";
       });
 
+      if (matchedOrder.digital_slug) {
+        await tryFulfillDigitalOrderPg(req, sql, matchedOrder.id, mutate);
+      }
+
       return sendJson(res, 200, { success: true, matched: true, order_id: matchedOrder.id });
+    }
+
+    const digitalDownloadMatch = url.pathname.match(
+      /^\/api\/digital-download\/([A-Za-z0-9]+)\/?$/
+    );
+    if (req.method === "GET" && digitalDownloadMatch) {
+      const token = digitalDownloadMatch[1];
+      const snapshot = await loadSnapshot(sql);
+      const row = getOrderByTokenSnapshot(snapshot, token);
+      if (!row?.digital_slug) {
+        return sendJson(res, 403, { error: "Link không hợp lệ hoặc chưa thanh toán." });
+      }
+      const catalog = getDigitalProduct(row.digital_slug);
+      const zipPath = resolveZipPath(catalog);
+      if (!zipPath) {
+        return sendJson(res, 503, { error: "File sản phẩm chưa sẵn sàng trên server." });
+      }
+      return streamZipDownload(res, zipPath, catalog.zipFile);
     }
 
     return sendJson(res, 404, { error: "API not found" });
