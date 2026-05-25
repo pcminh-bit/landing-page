@@ -9,12 +9,12 @@
     "university_slug": "ggu",
     "accreditation_label": "ĐƯỢC WASC KIỂM ĐỊNH",
     "degree_badge": "Tiến sĩ",
-    "program_title": "DBA Công nghệ mới nổi — Chuyên ngành Generative AI",
+    "program_title": "DBA — Tiến sĩ Quản trị Kinh doanh, Chuyên ngành Generative AI",
     "meta_line_1": "Tiến sĩ",
     "meta_line_2": "27 tháng",
-    "meta_line_3": "Pioneer DBA Gen AI tại Việt Nam",
-    "price_after": 264000000,
-    "price_display": "264.000.000 VNĐ",
+    "meta_line_3": "2 chuyến Immersion tại Singapore và San Francisco",
+    "price_after": 660000000,
+    "price_display": "660.000.000 VNĐ",
     "price_after_text": "Sau học bổng 60%",
     "cta_primary_label": "Nhận học bổng tốt nhất →",
     "cta_primary_url": "https://zalo.me/0917500437",
@@ -34,8 +34,8 @@
     "meta_line_1": "Tiến sĩ",
     "meta_line_2": "27 tháng",
     "meta_line_3": "#1 Đại học Mỹ cho người đi làm",
-    "price_after": 112500000,
-    "price_display": "112.500.000 VNĐ",
+    "price_after": 375000000,
+    "price_display": "375.000.000 VNĐ",
     "price_after_text": "Sau học bổng 70%",
     "cta_primary_label": "Nhận học bổng tốt nhất →",
     "cta_primary_url": "https://zalo.me/0917500437",
@@ -72,7 +72,7 @@
     "university_slug": "esgci",
     "accreditation_label": "QUALIOPI CERTIFIED — PHÁP",
     "degree_badge": "Tiến sĩ",
-    "program_title": "DBA — Tiến sĩ QTKD chuyên ngành AI Leadership",
+    "program_title": "DBA — Tiến sĩ Quản trị Kinh doanh, chuyên ngành AI Leadership",
     "meta_line_1": "Tiến sĩ",
     "meta_line_2": "Đến 36 tháng",
     "meta_line_3": "Top 10 trường kinh doanh Pháp",
@@ -102,7 +102,7 @@
     "price_after_text": "Sau học bổng",
     "cta_primary_label": "Nhận học bổng tốt nhất →",
     "cta_primary_url": "https://zalo.me/0917500437",
-    "brochure_url": null
+    "brochure_url": "https://cdn.upgrad.com/UpGrad/temp/db595395-d523-4928-bd68-49d13f7bcbc2/Edgewood+MBA%2BDBA-1.pdf?hsCtaTracking=93397ac6-b9a1-4762-9d67-d7c90b0d0e54%7Cb110be2e-6f3c-4fa9-bf94-da90b2bde8e9"
   },
   {
     "program_slug": "mba-ggu",
@@ -156,7 +156,7 @@
     "university_slug": "ljmu",
     "accreditation_label": "WES CÔNG NHẬN — ANH QUỐC",
     "degree_badge": "Thạc sĩ",
-    "program_title": "MBA — Liverpool Business School",
+    "program_title": "MBA — Thạc sĩ Quản trị Kinh doanh",
     "meta_line_1": "Thạc sĩ",
     "meta_line_2": "18 tháng",
     "meta_line_3": "200+ năm lịch sử, UK Immersion",
@@ -207,7 +207,7 @@
     "price_after_text": "Sau học bổng",
     "cta_primary_label": "Nhận học bổng tốt nhất →",
     "cta_primary_url": "https://zalo.me/0917500437",
-    "brochure_url": null
+    "brochure_url": "https://cdn.upgrad.com/UpGrad/temp/d5239f2a-5e53-4b5e-8912-f64fcca7dfaf/Dual+Master+and+Doctor+of+Education.pdf"
   },
   {
     "program_slug": "edd-edgewood",

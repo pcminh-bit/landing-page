@@ -146,6 +146,7 @@ const MIME_TYPES = {
   ".js": "application/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
+  ".webp": "image/webp",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".svg": "image/svg+xml",
@@ -231,6 +232,38 @@ function resolveDigitalProductAsset(assetRel) {
     }
   }
   return null;
+}
+
+function resolvePublicStaticPath(urlPath) {
+  const decoded = decodeURIComponent(urlPath);
+  if (decoded.includes("..")) return null;
+  const relative = decoded.replace(/^\/+/, "");
+  if (!relative) return null;
+  const fullPath = path.normalize(path.join(PUBLIC_DIR, relative));
+  const publicRoot = path.normalize(PUBLIC_DIR);
+  if (!fullPath.startsWith(publicRoot + path.sep) && fullPath !== publicRoot) {
+    return null;
+  }
+  return fullPath;
+}
+
+function tryServePublicStatic(res, urlPath) {
+  const filePath = resolvePublicStaticPath(urlPath);
+  if (!filePath || !fs.existsSync(filePath)) {
+    return false;
+  }
+  if (fs.statSync(filePath).isFile()) {
+    serveStaticFile(res, filePath);
+    return true;
+  }
+  if (fs.statSync(filePath).isDirectory()) {
+    const indexPath = path.join(filePath, "index.html");
+    if (fs.existsSync(indexPath) && fs.statSync(indexPath).isFile()) {
+      serveStaticFile(res, indexPath);
+      return true;
+    }
+  }
+  return false;
 }
 
 function serveStaticFile(res, filePath) {
@@ -463,6 +496,51 @@ async function handleApi(req, res, url) {
         indexPath,
         readable,
       });
+    }
+
+    const PROGRAMS_SELECT = `
+      SELECT id, program_slug, folder_name, category_slug, sort_order, is_published,
+        university_name, university_slug, accreditation_label, degree_badge,
+        program_title, meta_line_1, meta_line_2, meta_line_3,
+        price_after, price_display, price_after_text,
+        cta_primary_label, cta_primary_url, brochure_url,
+        created_at, updated_at
+      FROM programs
+    `;
+
+    if (req.method === "GET" && url.pathname === "/api/programs") {
+      const category = url.searchParams.get("category");
+      const rows = category
+        ? db
+            .prepare(
+              `${PROGRAMS_SELECT}
+               WHERE is_published = 1 AND category_slug = ?
+               ORDER BY category_slug ASC, sort_order ASC`
+            )
+            .all(category)
+        : db
+            .prepare(
+              `${PROGRAMS_SELECT}
+               WHERE is_published = 1
+               ORDER BY category_slug ASC, sort_order ASC`
+            )
+            .all();
+      return sendJson(res, 200, rows);
+    }
+
+    const programBySlugMatch = url.pathname.match(/^\/api\/programs\/([^/]+)\/?$/);
+    if (req.method === "GET" && programBySlugMatch) {
+      const slug = decodeURIComponent(programBySlugMatch[1]);
+      const row = db
+        .prepare(
+          `${PROGRAMS_SELECT}
+           WHERE program_slug = ? AND is_published = 1`
+        )
+        .get(slug);
+      if (!row) {
+        return sendJson(res, 404, { error: "Not found" });
+      }
+      return sendJson(res, 200, row);
     }
 
     if (usePostgresStore) {
@@ -923,47 +1001,20 @@ async function handleRequest(req, res) {
   }
 
   if (url.pathname === "/" || url.pathname === "/index.html") {
-    return serveStaticFile(res, path.join(ROOT, "index.html"));
+    return serveStaticFile(res, path.join(PUBLIC_DIR, "index.html"));
   }
 
-  const requested = url.pathname.replace(/^\/+/, "");
-  if (!requested) {
-    return serveStaticFile(res, path.join(ROOT, "index.html"));
-  }
-
-  // Vercel serves public/ via filesystem first; keep copies in public/ for production.
-  // Locally, prefer public/admin.* when present so behavior matches deploy.
-  const publicPath = path.join(PUBLIC_DIR, requested);
   if (
-    (requested === "admin.js" || requested === "admin.css") &&
-    fs.existsSync(publicPath)
+    url.pathname === "/chuong-trinh" ||
+    url.pathname === "/chuong-trinh.html"
   ) {
-    return serveStaticFile(res, publicPath);
+    return serveStaticFile(res, path.join(PUBLIC_DIR, "chuong-trinh.html"));
   }
 
-  const rootPath = path.join(ROOT, requested);
-  if (fs.existsSync(rootPath)) {
-    if (fs.statSync(rootPath).isFile()) {
-      return serveStaticFile(res, rootPath);
-    }
-    if (fs.statSync(rootPath).isDirectory()) {
-      const indexPath = path.join(rootPath, "index.html");
-      if (fs.existsSync(indexPath)) {
-        return serveStaticFile(res, indexPath);
-      }
-    }
+  if (tryServePublicStatic(res, url.pathname)) {
+    return;
   }
-  if (fs.existsSync(publicPath)) {
-    if (fs.statSync(publicPath).isFile()) {
-      return serveStaticFile(res, publicPath);
-    }
-    if (fs.statSync(publicPath).isDirectory()) {
-      const indexPath = path.join(publicPath, "index.html");
-      if (fs.existsSync(indexPath)) {
-        return serveStaticFile(res, indexPath);
-      }
-    }
-  }
+
   return sendJson(res, 404, { error: "Not found" });
 }
 

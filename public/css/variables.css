@@ -1,0 +1,45 @@
+:root {
+  /* Colors */
+  --primary: #E50913;
+  --primary-dark: #9B000C;
+  --primary-light: #F9C0C7;
+  --charcoal: #2D2D2D;
+  --text: #404040;
+  --text-light: #6B7280;
+  --bg-white: #FFFFFF;
+  --bg-light: #F8F9FA;
+  --border: #E9ECEF;
+  --grey: #D0D2D3;
+
+  /* Typography */
+  --font-family: 'Montserrat', sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 32px;
+  --font-size-4xl: 40px;
+
+  /* Spacing */
+  --space-xs: 8px;
+  --space-sm: 16px;
+  --space-md: 24px;
+  --space-lg: 32px;
+  --space-xl: 48px;
+  --space-2xl: 64px;
+  --space-3xl: 80px;
+
+  /* Layout */
+  --max-width: 1200px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
