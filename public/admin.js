@@ -76,6 +76,21 @@
     return String(status || "").trim().toLowerCase() === "pending";
   }
 
+  function parsePromptId(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return NaN;
+    const direct = Number(raw);
+    if (Number.isFinite(direct)) return direct;
+    const m = raw.match(/^(\d+)/);
+    return m ? Number(m[1]) : NaN;
+  }
+
+  function parseMoney(value) {
+    const raw = String(value || "").trim().replace(/[,\s]/g, "");
+    if (!raw) return NaN;
+    return Number(raw);
+  }
+
   function renderProducts() {
     const wrap = document.getElementById("products-table-wrap");
     if (!state.products.length) {
@@ -337,21 +352,45 @@
     const productList = state.products
       .map((p) => `${p.id} - ${p.name} (ton: ${p.stock_quantity})`)
       .join("\n");
-    const customerId = prompt(`Nhap customer_id:\n${customerList}`);
-    if (!customerId) return;
-    const productId = prompt(`Nhap product_id:\n${productList}`);
-    if (!productId) return;
+    const customerIdInput = prompt(`Nhap customer_id:\n${customerList}`);
+    if (!customerIdInput) return;
+    const productIdInput = prompt(`Nhap product_id:\n${productList}`);
+    if (!productIdInput) return;
     const amount = prompt("So tien don hang:");
     if (amount === null) return;
     const status = prompt("Trang thai (pending/paid/cancelled):", "pending") || "pending";
     const purchasedAt = prompt("Ngay mua (YYYY-MM-DD HH:MM:SS), bo trong de lay hien tai:", "") || null;
+    const customerId = parsePromptId(customerIdInput);
+    const productId = parsePromptId(productIdInput);
+    const amountValue = parseMoney(amount);
+    if (!Number.isFinite(customerId) || customerId <= 0) {
+      alert("customer_id khong hop le. Nhap ID so, vi du: 1");
+      return;
+    }
+    if (!Number.isFinite(productId) || productId <= 0) {
+      alert("product_id khong hop le. Nhap ID so, vi du: 1");
+      return;
+    }
+    if (!Number.isFinite(amountValue) || amountValue < 0) {
+      alert("So tien khong hop le. Nhap so duong, vi du: 100000");
+      return;
+    }
+    const product = state.products.find((p) => Number(p.id) === productId);
+    if (!product) {
+      alert("Khong tim thay san pham theo product_id da nhap.");
+      return;
+    }
+    if (Number(product.stock_quantity || 0) <= 0) {
+      alert("San pham nay da het hang (ton kho = 0), khong the tao don.");
+      return;
+    }
 
     await api("/api/orders", {
       method: "POST",
       body: JSON.stringify({
-        customer_id: Number(customerId),
-        product_id: Number(productId),
-        amount: Number(amount),
+        customer_id: customerId,
+        product_id: productId,
+        amount: amountValue,
         status,
         purchased_at: purchasedAt,
       }),

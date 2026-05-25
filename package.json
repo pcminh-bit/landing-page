@@ -5,6 +5,8 @@
     "node": ">=22"
   },
   "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
     "build": "node scripts/copy-admin-assets.js",
     "package:linkedin": "node scripts/package-linkedin-easy-posting-machine.js",
     "mcp": "node mcp/server.js"
