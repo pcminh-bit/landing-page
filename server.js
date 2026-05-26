@@ -943,8 +943,16 @@ async function handleApi(req, res, url) {
   }
 }
 
+function parseRequestUrl(req) {
+  const host = req.headers.host && String(req.headers.host).trim();
+  const port = Number(process.env.PORT) || 3000;
+  const base = host ? `http://${host}` : `http://127.0.0.1:${port}`;
+  const pathPart = req.url && String(req.url).trim() ? req.url : "/";
+  return new URL(pathPart, base);
+}
+
 async function handleRequest(req, res) {
-  const url = new URL(req.url, `http://${req.headers.host}`);
+  const url = parseRequestUrl(req);
 
   if (url.pathname.startsWith("/api/")) {
     return await handleApi(req, res, url);
