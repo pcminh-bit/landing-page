@@ -148,8 +148,21 @@
     height: 60px;
   }
 
+  .navbar-logo-name {
+    font-size: 16px;
+  }
+
+  .navbar-logo-sub {
+    display: none;
+  }
+
   .mobile-menu {
     top: 60px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    padding: var(--space-md) var(--space-sm);
+    box-sizing: border-box;
   }
 
   .navbar-nav {
@@ -162,5 +175,20 @@
 
   .hamburger {
     display: flex;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-nav {
+    gap: 16px;
+  }
+
+  .mobile-nav-link {
+    padding: 12px 0;
   }
 }

@@ -45,6 +45,12 @@
 @media (max-width: 767px) {
   .btn {
     width: 100%;
+    min-height: 44px;
+  }
+
+  .form-input,
+  .form-select {
+    font-size: 16px;
   }
 }
 
