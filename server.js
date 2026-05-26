@@ -1008,7 +1008,9 @@ async function handleRequest(req, res) {
     url.pathname === "/chuong-trinh" ||
     url.pathname === "/chuong-trinh.html"
   ) {
-    return serveStaticFile(res, path.join(PUBLIC_DIR, "chuong-trinh.html"));
+    res.writeHead(302, { Location: "/#chuong-trinh" });
+    res.end();
+    return;
   }
 
   if (tryServePublicStatic(res, url.pathname)) {

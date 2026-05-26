@@ -614,79 +614,195 @@
   margin-top: var(--space-xl);
 }
 
-/* Objections */
-.objections-section {
+/* FAQ */
+.faq-section {
   background-color: var(--bg-light);
   padding: var(--space-3xl) 0;
   border-top: 1px solid var(--border);
 }
 
-.objections-section h2 {
+.faq-section h2 {
   text-align: center;
   margin-bottom: var(--space-2xl);
 }
 
-.objections-grid {
-  gap: var(--space-lg);
-}
-
-.objection-item {
+.faq-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-  padding: var(--space-md);
+  gap: var(--space-sm);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.faq-card {
   background-color: var(--bg-white);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
 }
 
-.objection-item h3 {
-  font-size: var(--font-size-lg);
-  color: var(--charcoal);
-  margin: 0;
+.faq-card.is-open {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
 }
 
-.objection-item p {
+.faq-card-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-family);
+}
+
+.faq-card-label {
   font-size: var(--font-size-base);
-  color: var(--text-light);
-  line-height: 1.7;
-  margin: 0;
+  font-weight: 700;
+  color: var(--charcoal);
+  line-height: 1.4;
 }
 
-/* Consultation */
+.faq-card-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary);
+  background-color: var(--primary-light);
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  transition: transform 0.2s;
+}
+
+.faq-card.is-open .faq-card-icon {
+  transform: rotate(45deg);
+}
+
+.faq-card-panel {
+  padding: 0 var(--space-lg) var(--space-lg);
+  border-top: 1px solid var(--border);
+}
+
+.faq-question {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--primary);
+  margin: var(--space-md) 0 var(--space-sm);
+  line-height: 1.5;
+}
+
+.faq-answer {
+  font-size: var(--font-size-base);
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.faq-answer p {
+  margin: 0 0 var(--space-sm);
+}
+
+.faq-answer p:last-child {
+  margin-bottom: 0;
+}
+
+.faq-answer ul {
+  margin: 0 0 var(--space-sm);
+  padding-left: 1.25rem;
+}
+
+.faq-answer li {
+  margin-bottom: 6px;
+}
+
+.faq-answer li:last-child {
+  margin-bottom: 0;
+}
+
+/* Consultation / Liên hệ */
 .consultation-section {
   padding: var(--space-3xl) 0;
+  background-color: var(--bg-white);
 }
 
 .consultation-inner {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 480px);
   gap: var(--space-2xl);
   align-items: start;
 }
 
-.consultation-text {
+.contact-info-title {
+  font-size: var(--font-size-3xl);
+  margin: 0 0 var(--space-lg);
+  color: var(--charcoal);
+}
+
+.contact-cards {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
 }
 
-.consultation-text h2 {
-  font-size: var(--font-size-3xl);
-  margin: 0;
+.contact-card {
+  padding: var(--space-md);
+  background-color: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
 
-.consultation-text p {
-  color: var(--text-light);
-  line-height: 1.7;
+.contact-card-name {
   font-size: var(--font-size-lg);
-  margin: 0;
+  font-weight: 700;
+  color: var(--charcoal);
+  margin: 0 0 4px;
 }
 
-.contact-options {
+.contact-card-role {
+  font-size: var(--font-size-sm);
+  color: var(--text);
+  font-weight: 600;
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.contact-group-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--primary);
+  margin: 0 0 var(--space-sm);
+}
+
+.contact-card-details {
+  list-style: none;
+  padding: 0;
+  margin: 0;
   display: flex;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+.contact-card-details a {
+  color: var(--text);
+  word-break: break-word;
+}
+
+.contact-card-details a:hover {
+  color: var(--primary);
 }
 
 .consultation-form-wrap {
@@ -694,6 +810,19 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
+  width: 100%;
+  min-height: 440px;
+  height: 520px;
+  max-height: 90vh;
+  resize: vertical;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.consultation-form-wrap .hs-form-frame {
+  display: block;
+  min-height: 100%;
+  width: 100%;
 }
 
 /* Footer */
@@ -709,6 +838,10 @@
   gap: var(--space-md);
   align-items: center;
   text-align: center;
+}
+
+.footer-line {
+  white-space: nowrap;
 }
 
 .footer-brand {
@@ -732,9 +865,11 @@
 
 .footer-links {
   display: flex;
+  flex-wrap: nowrap;
   gap: var(--space-lg);
-  flex-wrap: wrap;
   justify-content: center;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .footer-links a {
@@ -746,12 +881,43 @@
   color: white;
 }
 
-.footer-contact a {
-  color: var(--grey);
-  font-size: var(--font-size-sm);
+.footer-contacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-xl);
+  width: 100%;
+  max-width: 920px;
+  text-align: left;
 }
 
-.footer-contact a:hover {
+.footer-contact-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--grey);
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+.footer-contact-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--primary-light);
+}
+
+.footer-contact-block strong {
+  color: white;
+  font-size: var(--font-size-base);
+}
+
+.footer-contact-block a {
+  color: var(--grey);
+}
+
+.footer-contact-block a:hover {
   color: white;
 }
 
@@ -759,6 +925,8 @@
   color: var(--grey);
   font-size: var(--font-size-xs);
   margin: 0;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 /* Responsive */
@@ -819,14 +987,26 @@
     grid-template-columns: 1fr;
   }
 
+  .consultation-form-wrap {
+    min-height: 360px;
+    height: 420px;
+    max-width: 100%;
+  }
+
+  .footer-contacts {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .footer-contact-block {
+    align-items: center;
+  }
+
   .program-card-v2 {
     flex: 0 0 280px;
     max-width: 280px;
   }
 
-  .objections-grid {
-    grid-template-columns: 1fr;
-  }
 
   .stats-row {
     grid-template-columns: repeat(2, 1fr);
