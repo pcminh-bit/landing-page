@@ -145,7 +145,9 @@
 
 @media (max-width: 767px) {
   .navbar-inner {
-    height: 60px;
+    min-height: 60px;
+    height: auto;
+    padding: 10px 0;
   }
 
   .navbar-logo-name {
@@ -153,11 +155,15 @@
   }
 
   .navbar-logo-sub {
-    display: none;
+    display: block;
+    font-size: 10px;
+    line-height: 1.25;
+    white-space: normal;
+    max-width: min(220px, calc(100vw - 100px));
   }
 
   .mobile-menu {
-    top: 60px;
+    top: 72px;
     left: 0;
     right: 0;
     width: 100%;

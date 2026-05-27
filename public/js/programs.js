@@ -1,13 +1,10 @@
 (function () {
   const CATEGORIES = ["kinh-doanh", "giao-duc", "cong-nghe", "tam-ly"];
+  const CTA_LABEL = "Nhận tư vấn học bổng + brochure";
   const LOADING_HTML =
     '<p class="program-cards-status">Đang tải chương trình...</p>';
   const ERROR_HTML =
     '<p class="program-cards-status program-cards-status--error">Không thể tải dữ liệu. Vui lòng thử lại.</p>';
-
-  let currentBrochureUrl = null;
-  let currentProgramSlug = null;
-  let currentProgramTitle = null;
 
   const tabs = document.querySelectorAll(".program-tab");
   const panels = document.querySelectorAll(".program-panel");
@@ -37,48 +34,7 @@
       .replace(/"/g, "&quot;");
   }
 
-  function jsArg(value) {
-    return JSON.stringify(String(value ?? ""));
-  }
-
-  function openBrochureModal(brochureUrl, programSlug, programTitle) {
-    currentBrochureUrl = brochureUrl;
-    currentProgramSlug = programSlug;
-    currentProgramTitle = programTitle;
-
-    const modal = document.getElementById("brochureModal");
-    const form = document.getElementById("brochureForm");
-    const msgEl = document.getElementById("brochureFormMsg");
-    const submitBtn = form?.querySelector(".modal-submit");
-
-    document.getElementById("modalProgramName").textContent = programTitle;
-    form.style.display = "flex";
-    form.reset();
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = "Tải Brochure ngay →";
-    }
-    msgEl.style.display = "none";
-    msgEl.textContent = "";
-    modal.style.display = "flex";
-    document.body.style.overflow = "hidden";
-  }
-
-  function closeBrochureModal() {
-    document.getElementById("brochureModal").style.display = "none";
-    document.body.style.overflow = "";
-    currentBrochureUrl = null;
-    currentProgramSlug = null;
-    currentProgramTitle = null;
-  }
-
-  window.openBrochureModal = openBrochureModal;
-  window.closeBrochureModal = closeBrochureModal;
-
   function renderCard(p) {
-    const brochureBtn = p.brochure_url
-      ? `<button type="button" class="btn btn-outline program-cta-v2" onclick="openBrochureModal(${jsArg(p.brochure_url)}, ${jsArg(p.program_slug)}, ${jsArg(p.program_title)})">Tải Brochure</button>`
-      : "";
     const logoSrc = getLogoSrc(p.university_slug);
     const headerMedia = logoSrc
       ? `<img class="program-uni-logo" src="${escapeHtml(logoSrc)}" alt="${escapeHtml(p.university_name)}" width="200" height="80" loading="lazy" />`
@@ -102,8 +58,7 @@
           <span class="price-after">${escapeHtml(p.price_display)}</span>
         </div>
         <div class="program-card-actions">
-          <a href="${escapeHtml(p.cta_primary_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary program-cta-v2">${escapeHtml(p.cta_primary_label)}</a>
-          ${brochureBtn}
+          <a href="${escapeHtml(p.cta_primary_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary program-cta-v2">${escapeHtml(CTA_LABEL)}</a>
         </div>
       </div>
     </div>
@@ -132,69 +87,6 @@
         );
         if (panel) panel.classList.add("active");
       });
-    });
-  }
-
-  function initBrochureModal() {
-    const modal = document.getElementById("brochureModal");
-    const form = document.getElementById("brochureForm");
-    if (!modal || !form) return;
-
-    document.getElementById("modalClose").addEventListener("click", closeBrochureModal);
-
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) closeBrochureModal();
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && modal.style.display === "flex") {
-        closeBrochureModal();
-      }
-    });
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const name = document.getElementById("brochureName").value.trim();
-      const phone = document.getElementById("brochurePhone").value.trim();
-      const submitBtn = form.querySelector(".modal-submit");
-      const msgEl = document.getElementById("brochureFormMsg");
-
-      if (!name || !phone) return;
-
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Đang xử lý...";
-
-      try {
-        await fetch("/api/customers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name,
-            phone,
-            source: "brochure-" + currentProgramSlug,
-            program: currentProgramTitle,
-          }),
-        });
-        window.open(currentBrochureUrl, "_blank", "noopener,noreferrer");
-        form.style.display = "none";
-        msgEl.style.display = "block";
-        msgEl.style.color = "#16a34a";
-        msgEl.style.background = "#f0fdf4";
-        msgEl.style.padding = "12px";
-        msgEl.style.borderRadius = "6px";
-        msgEl.textContent =
-          "✓ Brochure đã mở. Đội ngũ tư vấn sẽ liên hệ bạn sớm qua Zalo.";
-        setTimeout(closeBrochureModal, 3000);
-      } catch {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Tải Brochure ngay →";
-        msgEl.style.display = "block";
-        msgEl.style.color = "var(--primary)";
-        msgEl.style.background = "";
-        msgEl.style.padding = "12px";
-        msgEl.style.borderRadius = "6px";
-        msgEl.textContent = "Có lỗi xảy ra. Vui lòng thử lại.";
-      }
     });
   }
 
@@ -239,6 +131,5 @@
   }
 
   initTabs();
-  initBrochureModal();
   loadPrograms();
 })();
