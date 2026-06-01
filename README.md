@@ -50,6 +50,20 @@ Default URL: `http://localhost:3000`
    - Example crontab (daily 09:00 UTC):
      - `0 9 * * * CRON_SECRET=... BASE_URL=https://your-domain.com /var/www/landing-page/deploy/cron/email-sequence-cron.sh`
 
+## Deploy update on VPS (after git push)
+
+SSH into the server, then:
+
+```bash
+bash /var/www/landing-page/scripts/vps-deploy.sh
+```
+
+Or manually: `git pull origin main`, `npm install`, `npm run build`, `sudo systemctl restart landing-page`.
+
+**Verify:** open `https://your-domain.com/api/store-info` — should include `"buildId":"2026-05-29-main"`. Homepage nav should show **Giới thiệu Học viên**.
+
+If the public site still shows the old hero (“Nhận Bằng Cao Học”), the VPS is not running this repo’s latest code (wrong folder, old `node` process, or pull was run on your PC instead of the server).
+
 ## Security notes
 
 - Never commit `.env`, `.env.*`, or `resend_config.txt`

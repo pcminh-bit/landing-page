@@ -192,7 +192,7 @@ async function readJsonBodyWithRaw(req) {
 }
 
 
-const SERVER_BUILD_ID = "2026-05-18-digital-v2";
+const SERVER_BUILD_ID = "2026-05-29-main";
 const DIGITAL_PRODUCT_SLUG = "linkedin-easy-posting-machine";
 
 function resolveDigitalProductPath(pageFile) {
