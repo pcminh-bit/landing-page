@@ -148,6 +148,8 @@ const MIME_TYPES = {
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
   ".zip": "application/zip",
+  ".xml": "application/xml; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
 };
 
 function sendJson(res, status, payload) {
@@ -1472,6 +1474,14 @@ async function handleRequest(req, res) {
 
   if (url.pathname.startsWith("/san-pham/linkedin-easy-posting-machine")) {
     return sendJson(res, 410, { error: "Digital product page has been removed." });
+  }
+
+  if (url.pathname === "/sitemap.xml") {
+    return serveStaticFile(res, path.join(PUBLIC_DIR, "sitemap.xml"));
+  }
+
+  if (url.pathname === "/robots.txt") {
+    return serveStaticFile(res, path.join(PUBLIC_DIR, "robots.txt"));
   }
 
   if (url.pathname === "/" || url.pathname === "/index.html") {
