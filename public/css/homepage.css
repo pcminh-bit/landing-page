@@ -614,79 +614,195 @@
   margin-top: var(--space-xl);
 }
 
-/* Objections */
-.objections-section {
+/* FAQ */
+.faq-section {
   background-color: var(--bg-light);
   padding: var(--space-3xl) 0;
   border-top: 1px solid var(--border);
 }
 
-.objections-section h2 {
+.faq-section h2 {
   text-align: center;
   margin-bottom: var(--space-2xl);
 }
 
-.objections-grid {
-  gap: var(--space-lg);
-}
-
-.objection-item {
+.faq-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-  padding: var(--space-md);
+  gap: var(--space-sm);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.faq-card {
   background-color: var(--bg-white);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
 }
 
-.objection-item h3 {
-  font-size: var(--font-size-lg);
-  color: var(--charcoal);
-  margin: 0;
+.faq-card.is-open {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
 }
 
-.objection-item p {
+.faq-card-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-family);
+}
+
+.faq-card-label {
   font-size: var(--font-size-base);
-  color: var(--text-light);
-  line-height: 1.7;
-  margin: 0;
+  font-weight: 700;
+  color: var(--charcoal);
+  line-height: 1.4;
 }
 
-/* Consultation */
+.faq-card-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary);
+  background-color: var(--primary-light);
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  transition: transform 0.2s;
+}
+
+.faq-card.is-open .faq-card-icon {
+  transform: rotate(45deg);
+}
+
+.faq-card-panel {
+  padding: 0 var(--space-lg) var(--space-lg);
+  border-top: 1px solid var(--border);
+}
+
+.faq-question {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--primary);
+  margin: var(--space-md) 0 var(--space-sm);
+  line-height: 1.5;
+}
+
+.faq-answer {
+  font-size: var(--font-size-base);
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.faq-answer p {
+  margin: 0 0 var(--space-sm);
+}
+
+.faq-answer p:last-child {
+  margin-bottom: 0;
+}
+
+.faq-answer ul {
+  margin: 0 0 var(--space-sm);
+  padding-left: 1.25rem;
+}
+
+.faq-answer li {
+  margin-bottom: 6px;
+}
+
+.faq-answer li:last-child {
+  margin-bottom: 0;
+}
+
+/* Consultation / Liên hệ */
 .consultation-section {
   padding: var(--space-3xl) 0;
+  background-color: var(--bg-white);
 }
 
 .consultation-inner {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 480px);
   gap: var(--space-2xl);
   align-items: start;
 }
 
-.consultation-text {
+.contact-info-title {
+  font-size: var(--font-size-3xl);
+  margin: 0 0 var(--space-lg);
+  color: var(--charcoal);
+}
+
+.contact-cards {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
 }
 
-.consultation-text h2 {
-  font-size: var(--font-size-3xl);
-  margin: 0;
+.contact-card {
+  padding: var(--space-md);
+  background-color: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
 
-.consultation-text p {
-  color: var(--text-light);
-  line-height: 1.7;
+.contact-card-name {
   font-size: var(--font-size-lg);
-  margin: 0;
+  font-weight: 700;
+  color: var(--charcoal);
+  margin: 0 0 4px;
 }
 
-.contact-options {
+.contact-card-role {
+  font-size: var(--font-size-sm);
+  color: var(--text);
+  font-weight: 600;
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.contact-group-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--primary);
+  margin: 0 0 var(--space-sm);
+}
+
+.contact-card-details {
+  list-style: none;
+  padding: 0;
+  margin: 0;
   display: flex;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+.contact-card-details a {
+  color: var(--text);
+  word-break: break-word;
+}
+
+.contact-card-details a:hover {
+  color: var(--primary);
 }
 
 .consultation-form-wrap {
@@ -694,6 +810,19 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
+  width: 100%;
+  min-height: 440px;
+  height: 520px;
+  max-height: 90vh;
+  resize: vertical;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.consultation-form-wrap .hs-form-frame {
+  display: block;
+  min-height: 100%;
+  width: 100%;
 }
 
 /* Footer */
@@ -842,15 +971,86 @@
 }
 
 @media (max-width: 767px) {
+  /* Hero */
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-main {
+    order: 0;
+  }
+
+  .hero-form-col {
+    order: 1;
+    position: static;
+  }
+
+  .hero-grid .portrait-wrap,
+  .hero-grid .portrait-img {
+    order: -1;
+    max-height: 320px;
+    object-fit: cover;
+    width: 100%;
+  }
+
   .hero-main h1 {
-    font-size: 28px;
+    font-size: 26px;
+  }
+
+  .hero-badge {
+    font-size: 11px;
   }
 
   .hero-form-box {
     max-width: 100%;
+    padding: 16px;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .hero-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .uni-gallery {
+    mask-image: none;
+  }
+
+  .uni-gallery-track {
+    flex-wrap: wrap;
+    width: 100%;
+    animation: none;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .uni-slide {
+    width: 120px;
+    height: 48px;
+  }
+
+  .uni-slide img {
+    padding: 4px;
+  }
+
+  .uni-logo-text {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .portrait-img {
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+  }
+
+  /* Social proof */
+  .social-proof-layout {
+    grid-template-columns: 1fr;
   }
 
   .social-proof-portrait {
+    order: -1;
     max-width: 100%;
   }
 
@@ -878,6 +1078,165 @@
 
   .stats-row {
     grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-sm);
+  }
+
+  .stat-number {
+    font-size: 28px;
+  }
+
+  .award-block {
+    align-items: stretch;
+  }
+
+  .award-gallery-wrap {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .award-gallery {
+    max-width: 100%;
+  }
+
+  .award-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    min-height: 160px;
+    height: min(200px, 36vh);
+  }
+
+  .award-cta {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .award-gallery-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Programs */
+  .program-tabs {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .program-tab {
+    padding: 8px 14px;
+    flex-shrink: 0;
+  }
+
+  .program-gallery,
+  .program-gallery-track,
+  .program-cards-row {
+    overflow-x: visible;
+    flex-direction: column;
+    scroll-snap-type: none;
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .program-card-v2 {
+    flex: 1 1 auto;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .program-card-img {
+    height: 120px;
+  }
+
+  .program-card-body {
+    padding: 12px;
+  }
+
+  .price-after {
+    font-size: 18px;
+  }
+
+  .program-card-actions .btn {
+    min-height: 44px;
+  }
+
+  /* FAQ / objections */
+  .objections-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .objection-item {
+    padding: 16px;
+  }
+
+  .faq-card-trigger {
+    padding: 16px var(--space-md);
+  }
+
+  .faq-card-panel {
+    padding: 0 16px 16px;
+  }
+
+  /* Consultation */
+  .consultation-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-info-title,
+  .consultation-text h2 {
+    font-size: 24px;
+  }
+
+  .consultation-form-wrap {
+    min-height: 360px;
+    height: 420px;
+    max-width: 100%;
+  }
+
+  /* Footer */
+  .footer-contacts {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .footer-contact-block {
+    align-items: center;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    align-items: flex-start;
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  .modal-box {
+    margin: 16px auto;
+    padding: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-title {
+    font-size: 18px;
+  }
+
+  .modal-close {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-submit {
+    min-height: 44px;
   }
 }
 
