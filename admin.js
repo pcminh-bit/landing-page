@@ -1,458 +1,744 @@
-(function () {
+ (function () {
   const state = {
-    products: [],
-    customers: [],
-    orders: [],
+    referrers: [],
+    referees: [],
+    programs: [],
+    activeReferrerCode: null,
   };
 
   const tabs = Array.from(document.querySelectorAll(".tab-btn"));
   const panels = {
-    products: document.getElementById("products-panel"),
-    customers: document.getElementById("customers-panel"),
-    orders: document.getElementById("orders-panel"),
+    referrers: document.getElementById("referrers-panel"),
+    referees: document.getElementById("referees-panel"),
   };
 
-  tabs.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const tab = btn.dataset.tab;
-      tabs.forEach((item) => item.classList.toggle("active", item === btn));
-      Object.entries(panels).forEach(([key, panel]) => {
-        panel.classList.toggle("active", key === tab);
-      });
-    });
-  });
+  const basicRefereeInputs = [
+    document.getElementById("rf_referrer_code"),
+    document.getElementById("rf_name"),
+    document.getElementById("rf_phone"),
+    document.getElementById("rf_email"),
+  ];
 
+  const enrolledProgramEl = document.getElementById("rf_enrolled_program");
+  const tuitionAmountEl = document.getElementById("rf_tuition_amount");
+  const feeWaiverEl = document.getElementById("rf_fee_waiver");
+  const netTuitionEl = document.getElementById("rf_net_tuition");
+  const commissionRateEl = document.getElementById("rf_commission_rate");
+  const commissionAmountEl = document.getElementById("rf_commission_amount");
+  const financialPlanEl = document.getElementById("rf_financial_plan");
+  const installmentCountEl = document.getElementById("rf_installment_count");
+  const installmentCountGroupEl = document.getElementById("installmentCountGroup");
+  const upfrontAmountEl = document.getElementById("rf_upfront_amount");
+  const upfrontAmountGroupEl = document.getElementById("upfrontAmountGroup");
+  const enrollmentSectionEl = document.getElementById("enrollmentSection");
+  const installmentsWrapEl = document.getElementById("installmentsTableWrap");
   async function api(path, options = {}) {
     const response = await fetch(path, {
       headers: { "Content-Type": "application/json" },
       ...options,
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload.error || "Yeu cau that bai");
-    }
+    if (!response.ok) throw new Error(payload.error || "Yeu cau that bai");
     return payload;
   }
 
-  function renderStoreBanner(info) {
-    const el = document.getElementById("store-banner");
+  function parseNumber(value, fallback = 0) {
+    const n = Number(String(value ?? "").trim());
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function parseRate(value, fallback = 0.05) {
+    const n = Number(String(value ?? "").trim().replace(",", "."));
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function parseMoney(value, fallback = 0) {
+    const digits = String(value ?? "").replace(/\D/g, "");
+    if (!digits) return fallback;
+    const n = Number(digits);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function formatComma(n) {
+    return Number(n || 0).toLocaleString("vi-VN");
+  }
+
+  function setMoneyInput(el, amount) {
     if (!el) return;
-    if (info.vercel && !info.postgres) {
-      el.hidden = false;
-      el.textContent =
-        "Cảnh báo: SQLite trên Vercel lưu trong /tmp theo từng instance serverless. Webhook và trang Admin có thể thấy hai bộ dữ liệu khác nhau — tab Đơn hàng có thể trống dù webhook trả 200 OK. Thêm DATABASE_URL (Neon Postgres) trong Environment Variables để dữ liệu webhook và admin dùng chung.";
-    } else {
-      el.hidden = true;
-      el.textContent = "";
+    el.value = formatComma(amount);
+  }
+
+  function getMoneyInput(el) {
+    return parseMoney(el?.value, 0);
+  }
+
+  function formatVND(n) {
+    return formatComma(n) + " VNĐ";
+  }
+
+  function bindMoneyInput(el, onChange) {
+    if (!el) return;
+    el.addEventListener("focus", () => {
+      const n = getMoneyInput(el);
+      el.value = n > 0 ? String(n) : "";
+    });
+    el.addEventListener("blur", () => {
+      const n = getMoneyInput(el);
+      setMoneyInput(el, n);
+      if (onChange) onChange();
+    });
+    el.addEventListener("input", () => {
+      if (onChange) onChange();
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function formatDate(value) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    return d.toLocaleString("vi-VN");
+  }
+
+  function monthYearFromDate(date) {
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    return `${mm}/${date.getFullYear()}`;
+  }
+
+  function addMonthYear(baseDate, delta) {
+    const d = new Date(baseDate.getFullYear(), baseDate.getMonth() + delta, 1);
+    return monthYearFromDate(d);
+  }
+
+  function getReferrerStatusBadge(status) {
+    return String(status || "active").toLowerCase() === "inactive"
+      ? '<span class="badge status-inactive">inactive</span>'
+      : '<span class="badge status-active">active</span>';
+  }
+
+  function getRefereeStatusBadge(status) {
+    const normalized = String(status || "pending").trim().toLowerCase();
+    const allowed = ["pending", "contacted", "enrolled", "commission_paid"];
+    const key = allowed.includes(normalized) ? normalized : "pending";
+    return `<span class="badge status-${key}">${escapeHtml(key)}</span>`;
+  }
+
+  function enrollmentReady() {
+    return basicRefereeInputs.every((el) => String(el.value || "").trim() !== "");
+  }
+
+  function refreshEnrollmentVisibility() {
+    enrollmentSectionEl.hidden = !enrollmentReady();
+  }
+
+  function recalcNetFromTuitionAndWaiver() {
+    const tuition = getMoneyInput(tuitionAmountEl);
+    const feeWaiver = getMoneyInput(feeWaiverEl);
+    setMoneyInput(netTuitionEl, Math.max(0, tuition - feeWaiver));
+  }
+
+  function recalcCommission() {
+    const netTuition = getMoneyInput(netTuitionEl);
+    const rate = parseRate(commissionRateEl.value, 0.05);
+    setMoneyInput(commissionAmountEl, Math.round(netTuition * rate));
+  }
+
+  function recalcInstallmentCommissions() {
+    const rate = parseRate(commissionRateEl.value, 0.05);
+    installmentsWrapEl.querySelectorAll(".inst-amount").forEach((amountEl) => {
+      const idx = amountEl.dataset.index;
+      const comEl = installmentsWrapEl.querySelector(
+        `.inst-commission[data-index="${idx}"]`
+      );
+      if (comEl) {
+        const amount = getMoneyInput(amountEl);
+        comEl.value = formatComma(Math.round(amount * rate));
+      }
+    });
+  }
+
+  function splitEvenly(total, parts) {
+    const amounts = [];
+    const base = Math.floor(total / parts);
+    for (let i = 1; i <= parts; i += 1) {
+      amounts.push(i === parts ? total - base * (parts - 1) : base);
     }
+    return amounts;
   }
 
-  async function loadAll() {
-    let storeInfo = { vercel: false, postgres: false };
-    try {
-      const r = await fetch("/api/store-info");
-      if (r.ok) storeInfo = await r.json();
-    } catch (_) {}
-
-    const [products, customers, orders] = await Promise.all([
-      api("/api/products"),
-      api("/api/customers"),
-      api("/api/orders"),
-    ]);
-    state.products = Array.isArray(products) ? products : [];
-    state.customers = Array.isArray(customers) ? customers : [];
-    state.orders = Array.isArray(orders) ? orders : [];
-    renderStoreBanner(storeInfo);
-    renderProducts();
-    renderCustomers();
-    renderOrders();
+  function buildInstallmentRow(i, amount, dueMonthOffset, rate, rowIndex) {
+    const now = new Date();
+    const dueDate = addMonthYear(now, dueMonthOffset);
+    const commissionDueDate = addMonthYear(now, dueMonthOffset + 2);
+    return `
+      <tr>
+        <td>${i}</td>
+        <td><input type="text" class="inst-amount money-input" value="${formatComma(amount)}" data-index="${rowIndex}" inputmode="numeric" /></td>
+        <td><input type="text" class="inst-due" value="${dueDate}" data-index="${rowIndex}" placeholder="MM/YYYY" /></td>
+        <td><input type="text" class="inst-commission" value="${formatComma(Math.round(amount * rate))}" data-index="${rowIndex}" readonly /></td>
+        <td><input type="text" class="inst-com-due" value="${commissionDueDate}" data-index="${rowIndex}" placeholder="MM/YYYY" /></td>
+      </tr>
+    `;
   }
 
-  function formatMoney(value) {
-    return Number(value || 0).toLocaleString("vi-VN");
+  function updatePlanFieldsVisibility() {
+    const plan = financialPlanEl.value;
+    installmentCountGroupEl.hidden = plan === "full";
+    upfrontAmountGroupEl.hidden = plan !== "partial_installment";
   }
 
-  function isOrderPending(status) {
-    return String(status || "").trim().toLowerCase() === "pending";
+  function generateInstallments() {
+    const plan = financialPlanEl.value;
+    updatePlanFieldsVisibility();
+    const netTuition = Math.max(0, getMoneyInput(netTuitionEl));
+    const rate = parseRate(commissionRateEl.value, 0.05);
+    const rows = [];
+    let rowIndex = 0;
+
+    if (plan === "full") {
+      rows.push(buildInstallmentRow(1, netTuition, 1, rate, rowIndex++));
+    } else if (plan === "installment") {
+      const count = Math.min(6, Math.max(2, parseNumber(installmentCountEl.value, 2)));
+      const amounts = splitEvenly(netTuition, count);
+      amounts.forEach((amount, idx) => {
+        rows.push(buildInstallmentRow(idx + 1, amount, 1 + idx * 2, rate, rowIndex++));
+      });
+    } else if (plan === "partial_installment") {
+      const installmentCount = Math.min(6, Math.max(2, parseNumber(installmentCountEl.value, 2)));
+      let upfront = getMoneyInput(upfrontAmountEl);
+      if (!upfront || upfront >= netTuition) {
+        upfront = Math.round(netTuition * 0.3);
+        setMoneyInput(upfrontAmountEl, upfront);
+      }
+      const remaining = Math.max(0, netTuition - upfront);
+      rows.push(buildInstallmentRow("Trả trước", upfront, 1, rate, rowIndex++));
+      const amounts = splitEvenly(remaining, installmentCount);
+      amounts.forEach((amount, idx) => {
+        rows.push(buildInstallmentRow(idx + 1, amount, 3 + idx * 2, rate, rowIndex++));
+      });
+    }
+
+    installmentsWrapEl.innerHTML = rows.length
+      ? `
+      <table id="installmentsTable" class="installments-table compact">
+        <thead>
+          <tr>
+            <th>Đợt</th><th>Số tiền (VNĐ)</th><th>Tháng đóng học phí (MM/YYYY)</th><th>Com từng đợt</th><th>Tháng trả hoa hồng (MM/YYYY)</th>
+          </tr>
+        </thead>
+        <tbody>${rows.join("")}</tbody>
+      </table>
+    `
+      : "";
+
+    installmentsWrapEl.querySelectorAll(".inst-amount").forEach((el) => {
+      bindMoneyInput(el, recalcInstallmentCommissions);
+    });
   }
 
-  function parsePromptId(value) {
-    const raw = String(value || "").trim();
-    if (!raw) return NaN;
-    const direct = Number(raw);
-    if (Number.isFinite(direct)) return direct;
-    const m = raw.match(/^(\d+)/);
-    return m ? Number(m[1]) : NaN;
+  function collectInstallmentsFromForm() {
+    const amountNodes = Array.from(installmentsWrapEl.querySelectorAll(".inst-amount"));
+    const dueNodes = Array.from(installmentsWrapEl.querySelectorAll(".inst-due"));
+    const comNodes = Array.from(installmentsWrapEl.querySelectorAll(".inst-commission"));
+    const comDueNodes = Array.from(installmentsWrapEl.querySelectorAll(".inst-com-due"));
+    return amountNodes.map((node, idx) => ({
+      installment_no: idx + 1,
+      amount: getMoneyInput(node),
+      due_date: String(dueNodes[idx]?.value || "").trim(),
+      commission_amount: parseMoney(comNodes[idx]?.value, 0),
+      commission_due_date: String(comDueNodes[idx]?.value || "").trim(),
+      commission_paid: false,
+    }));
   }
 
-  function parseMoney(value) {
-    const raw = String(value || "").trim().replace(/[,\s]/g, "");
-    if (!raw) return NaN;
-    return Number(raw);
+  function populateReferrerCodeSelect(preselectedCode = null) {
+    const el = document.getElementById("rf_referrer_code");
+    if (!el) return;
+    const selected =
+      preselectedCode || state.activeReferrerCode || String(el.value || "").trim();
+    const activeReferrers = state.referrers.filter(
+      (r) => String(r.status || "active").trim().toLowerCase() === "active"
+    );
+    const options = [
+      '<option value="">— Chọn mã referral —</option>',
+      ...activeReferrers.map((r) => {
+        const code = String(r.referral_code || "").trim();
+        const label = `${code} — ${r.name || ""}`;
+        const isSelected = code === selected ? " selected" : "";
+        return `<option value="${escapeHtml(code)}"${isSelected}>${escapeHtml(label)}</option>`;
+      }),
+    ];
+    el.innerHTML = options.join("");
+    if (selected && !el.value) {
+      el.value = selected;
+    }
+    refreshEnrollmentVisibility();
   }
 
-  function renderProducts() {
-    const wrap = document.getElementById("products-table-wrap");
-    if (!state.products.length) {
-      wrap.innerHTML = '<div class="empty">Chua co san pham.</div>';
+  async function loadPrograms() {
+    const data = await api("/api/programs");
+    state.programs = Array.isArray(data) ? data : [];
+    const options = [
+      '<option value="">Chọn chương trình</option>',
+      ...state.programs.map((p) => {
+        const label = `${p.program_title || p.program_slug} — ${p.university_name || ""}`;
+        return `<option value="${escapeHtml(p.program_slug)}" data-price="${Number(p.price_after || 0)}">${escapeHtml(label)}</option>`;
+      }),
+    ];
+    enrolledProgramEl.innerHTML = options.join("");
+  }
+
+  function renderReferrers() {
+    const wrap = document.getElementById("referrers-table-wrap");
+    if (!state.referrers.length) {
+      wrap.innerHTML = '<div class="empty">Chua co referrer.</div>';
       return;
     }
-    const rows = state.products
+    const rows = state.referrers
       .map(
-        (item) => `
+        (item, idx) => `
         <tr>
-          <td>${item.id}</td>
-          <td>${item.name}</td>
-          <td>${formatMoney(item.price)}</td>
-          <td>${item.description || ""}</td>
-          <td>${item.stock_quantity}</td>
-          <td>${item.created_at || ""}</td>
+          <td>${idx + 1}</td>
+          <td>${escapeHtml(item.name || "")}</td>
+          <td>${escapeHtml(item.phone || "")}</td>
+          <td>${escapeHtml(item.email || "")}</td>
+          <td><span class="mono">${escapeHtml(item.referral_code || "")}</span></td>
+          <td><span class="badge badge-count">${Number(item.referee_count || 0)}</span></td>
+          <td>${getReferrerStatusBadge(item.status)}</td>
+          <td>${escapeHtml(item.bank_name || "")}</td>
           <td>
             <div class="actions">
-              <button class="action" data-edit-product="${item.id}">Sua</button>
-              <button class="action danger" data-del-product="${item.id}">Xoa</button>
+              <button class="action" data-view-referees="${escapeHtml(item.referral_code)}">Xem</button>
+              <button class="action ${String(item.status || "active") === "active" ? "danger" : "ok"}" data-toggle-referrer="${escapeHtml(item.referral_code)}" data-current-status="${escapeHtml(item.status || "active")}">
+                ${String(item.status || "active") === "active" ? "Đổi inactive" : "Đổi active"}
+              </button>
             </div>
           </td>
         </tr>`
       )
       .join("");
-
     wrap.innerHTML = `
       <table>
         <thead>
           <tr>
-            <th>ID</th><th>Ten</th><th>Gia</th><th>Mo ta</th><th>Ton kho</th><th>Ngay tao</th><th>Hanh dong</th>
+            <th>STT</th><th>Họ tên</th><th>SĐT</th><th>Email</th><th>Mã referral</th><th>Số referee</th><th>Trạng thái</th><th>Ngân hàng</th><th>Hành động</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
     `;
 
-    wrap.querySelectorAll("[data-edit-product]").forEach((btn) => {
-      btn.addEventListener("click", () => editProduct(Number(btn.dataset.editProduct)));
+    wrap.querySelectorAll("[data-view-referees]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.activeReferrerCode = btn.dataset.viewReferees;
+        populateReferrerCodeSelect(state.activeReferrerCode);
+        document.querySelector('[data-tab="referees"]')?.click();
+      });
     });
-    wrap.querySelectorAll("[data-del-product]").forEach((btn) => {
-      btn.addEventListener("click", () => deleteProduct(Number(btn.dataset.delProduct)));
-    });
-  }
-
-  function renderCustomers() {
-    const wrap = document.getElementById("customers-table-wrap");
-    if (!state.customers.length) {
-      wrap.innerHTML = '<div class="empty">Chua co khach hang.</div>';
-      return;
-    }
-    const rows = state.customers
-      .map(
-        (item) => `
-        <tr>
-          <td>${item.id}</td>
-          <td>${item.name}</td>
-          <td>${item.email || ""}</td>
-          <td>${item.phone || ""}</td>
-          <td>${item.zalo || ""}</td>
-          <td>${item.registered_at || ""}</td>
-          <td>
-            <div class="actions">
-              <button class="action" data-edit-customer="${item.id}">Sua</button>
-              <button class="action danger" data-del-customer="${item.id}">Xoa</button>
-            </div>
-          </td>
-        </tr>`
-      )
-      .join("");
-
-    wrap.innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th><th>Ten</th><th>Email</th><th>So dien thoai</th><th>Zalo</th><th>Ngay dang ky</th><th>Hanh dong</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-
-    wrap.querySelectorAll("[data-edit-customer]").forEach((btn) => {
-      btn.addEventListener("click", () => editCustomer(Number(btn.dataset.editCustomer)));
-    });
-    wrap.querySelectorAll("[data-del-customer]").forEach((btn) => {
-      btn.addEventListener("click", () => deleteCustomer(Number(btn.dataset.delCustomer)));
-    });
-  }
-
-  function renderOrders() {
-    const wrap = document.getElementById("orders-table-wrap");
-    if (!state.orders.length) {
-      wrap.innerHTML = '<div class="empty">Chua co don hang.</div>';
-      return;
-    }
-    const rows = state.orders
-      .map(
-        (item) => `
-        <tr>
-          <td>${item.id}</td>
-          <td>${item.order_code || ""}</td>
-          <td>${item.customer_name || `#${item.customer_id}`}</td>
-          <td>${item.product_name || `#${item.product_id}`}</td>
-          <td>${formatMoney(item.amount)}</td>
-          <td>${item.status}</td>
-          <td>${item.purchased_at || ""}</td>
-          <td>
-            <div class="actions">
-              ${
-                isOrderPending(item.status)
-                  ? `<button type="button" class="action ok" data-confirm-payment="${item.id}">Xác nhận thanh toán</button>`
-                  : ""
-              }
-              <button class="action" data-edit-order="${item.id}">Sua</button>
-              <button class="action danger" data-del-order="${item.id}">Xoa</button>
-            </div>
-          </td>
-        </tr>`
-      )
-      .join("");
-
-    wrap.innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th><th>Ma don</th><th>Khach hang</th><th>San pham</th><th>So tien</th><th>Trang thai</th><th>Ngay mua</th><th>Hanh dong</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-
-    wrap.querySelectorAll("[data-edit-order]").forEach((btn) => {
-      btn.addEventListener("click", () => editOrder(Number(btn.dataset.editOrder)));
-    });
-    wrap.querySelectorAll("[data-del-order]").forEach((btn) => {
-      btn.addEventListener("click", () => deleteOrder(Number(btn.dataset.delOrder)));
-    });
-    wrap.querySelectorAll("[data-confirm-payment]").forEach((btn) => {
+    wrap.querySelectorAll("[data-toggle-referrer]").forEach((btn) => {
       btn.addEventListener("click", () =>
-        confirmPayment(Number(btn.dataset.confirmPayment)).catch((error) => alert(error.message))
+        toggleReferrerStatus(btn.dataset.toggleReferrer, btn.dataset.currentStatus).catch((error) =>
+          alert(error.message)
+        )
       );
     });
   }
 
-  async function addProduct() {
-    const name = prompt("Ten san pham:");
-    if (!name) return;
-    const price = prompt("Gia:");
-    if (price === null) return;
-    const description = prompt("Mo ta:", "") || "";
-    const stock = prompt("So luong ton:", "0");
-    if (stock === null) return;
-    await api("/api/products", {
-      method: "POST",
-      body: JSON.stringify({
-        name,
-        price: Number(price),
-        description,
-        stock_quantity: Number(stock),
-      }),
+  function parseInstallments(raw) {
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function planLabel(item) {
+    const plan = String(item.financial_plan || "full");
+    const list = parseInstallments(item.installments);
+    if (plan === "installment") return `Trả góp ${list.length || 0} đợt`;
+    if (plan === "partial_installment") {
+      const gopCount = Math.max(0, (list.length || 0) - 1);
+      return `Trả trước + góp ${gopCount} đợt`;
+    }
+    return "Thanh toán full";
+  }
+
+  function renderReferees() {
+    const wrap = document.getElementById("referees-table-wrap");
+    if (!state.referees.length) {
+      wrap.innerHTML = '<div class="empty">Chua co referee.</div>';
+      return;
+    }
+    const rows = state.referees
+      .map(
+        (item, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${escapeHtml(item.name)}</td>
+          <td>${escapeHtml(item.phone || "")}</td>
+          <td>${escapeHtml(item.email || "")}</td>
+          <td>${escapeHtml(item.enrolled_program || "")}</td>
+          <td>${formatVND(Number(item.tuition_amount || 0) - Number(item.fee_waiver || 0))}</td>
+          <td>${planLabel(item)}</td>
+          <td>${formatVND(item.commission_amount || 0)}</td>
+          <td>${getRefereeStatusBadge(item.status)}</td>
+          <td>${formatDate(item.created_at)}</td>
+          <td>
+            <div class="actions">
+              <button class="action" data-details-referee="${item.id}">Chi tiết</button>
+              <button class="action" data-edit-referee="${item.id}">Cập nhật</button>
+            </div>
+          </td>
+        </tr>
+        <tr class="expand-row" id="referee-detail-row-${item.id}" style="display:none;">
+          <td colspan="11">
+            ${renderInstallmentsDetail(item)}
+          </td>
+        </tr>
+        <tr class="inline-edit" id="referee-edit-row-${item.id}" style="display:none;">
+          <td colspan="11">
+            <form data-referee-form="${item.id}" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;align-items:end;">
+              <label>Status
+                <select name="status">
+                  <option value="pending" ${item.status === "pending" ? "selected" : ""}>pending</option>
+                  <option value="contacted" ${item.status === "contacted" ? "selected" : ""}>contacted</option>
+                  <option value="enrolled" ${item.status === "enrolled" ? "selected" : ""}>enrolled</option>
+                  <option value="commission_paid" ${item.status === "commission_paid" ? "selected" : ""}>commission_paid</option>
+                </select>
+              </label>
+              <label>Enrolled program<input name="enrolled_program" value="${escapeHtml(item.enrolled_program || "")}" /></label>
+              <label>Tuition amount<input name="tuition_amount" type="number" value="${escapeHtml(item.tuition_amount || "")}" /></label>
+              <label>Fee waiver<input name="fee_waiver" type="number" value="${escapeHtml(item.fee_waiver || 0)}" /></label>
+              <label>Commission rate<input name="commission_rate" type="number" step="0.01" value="${escapeHtml(item.commission_rate || "")}" /></label>
+              <label>Commission amount<input name="commission_amount" type="number" value="${escapeHtml(item.commission_amount || "")}" /></label>
+              <label>Financial plan
+                <select name="financial_plan">
+                  <option value="full" ${item.financial_plan === "full" ? "selected" : ""}>full</option>
+                  <option value="installment" ${item.financial_plan === "installment" ? "selected" : ""}>installment</option>
+                  <option value="partial_installment" ${item.financial_plan === "partial_installment" ? "selected" : ""}>partial_installment</option>
+                </select>
+              </label>
+              <label>Commission note<input name="commission_note" value="${escapeHtml(item.commission_note || "")}" /></label>
+              <label>Payment schedule<input name="payment_schedule" value="${escapeHtml(item.payment_schedule || "")}" /></label>
+              <label style="grid-column: span 3;">Installments (JSON)<textarea rows="3" name="installments">${escapeHtml(item.installments || "")}</textarea></label>
+              <button type="submit" class="action ok">Lưu cập nhật</button>
+            </form>
+          </td>
+        </tr>`
+      )
+      .join("");
+    wrap.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>STT</th><th>Học viên</th><th>SĐT</th><th>Email</th><th>Chương trình</th><th>Net tuition</th><th>Hình thức</th><th>Tổng com</th><th>Status</th><th>Ngày tạo</th><th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    wrap.querySelectorAll("[data-details-referee]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const row = document.getElementById(`referee-detail-row-${btn.dataset.detailsReferee}`);
+        if (!row) return;
+        row.style.display = row.style.display === "none" ? "table-row" : "none";
+      });
     });
-    await loadAll();
-  }
-
-  async function editProduct(id) {
-    const item = state.products.find((x) => x.id === id);
-    if (!item) return;
-    const name = prompt("Ten san pham:", item.name);
-    if (!name) return;
-    const price = prompt("Gia:", String(item.price));
-    if (price === null) return;
-    const description = prompt("Mo ta:", item.description || "") || "";
-    const stock = prompt("So luong ton:", String(item.stock_quantity));
-    if (stock === null) return;
-    await api(`/api/products/${id}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        name,
-        price: Number(price),
-        description,
-        stock_quantity: Number(stock),
-      }),
+    wrap.querySelectorAll("[data-edit-referee]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const row = document.getElementById(`referee-edit-row-${btn.dataset.editReferee}`);
+        if (!row) return;
+        row.style.display = row.style.display === "none" ? "table-row" : "none";
+      });
     });
-    await loadAll();
-  }
-
-  async function deleteProduct(id) {
-    if (!confirm("Xoa san pham nay?")) return;
-    await api(`/api/products/${id}`, { method: "DELETE" });
-    await loadAll();
-  }
-
-  async function addCustomer() {
-    const name = prompt("Ten khach hang:");
-    if (!name) return;
-    const email = prompt("Email:", "") || "";
-    const phone = prompt("So dien thoai:", "") || "";
-    const zalo = prompt("Zalo:", "") || "";
-    const registeredAt = prompt("Ngay dang ky (YYYY-MM-DD HH:MM:SS), bo trong de lay hien tai:", "") || null;
-    await api("/api/customers", {
-      method: "POST",
-      body: JSON.stringify({
-        name,
-        email,
-        phone,
-        zalo,
-        registered_at: registeredAt,
-      }),
+    wrap.querySelectorAll("[data-referee-form]").forEach((form) => {
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const id = Number(form.dataset.refereeForm);
+        const formData = new FormData(form);
+        const payload = {
+          status: String(formData.get("status") || "").trim(),
+          enrolled_program: String(formData.get("enrolled_program") || "").trim(),
+          tuition_amount: formData.get("tuition_amount") || null,
+          commission_rate: formData.get("commission_rate") || null,
+          commission_amount: formData.get("commission_amount") || null,
+          fee_waiver: formData.get("fee_waiver") || null,
+          financial_plan: String(formData.get("financial_plan") || "full"),
+          installments: String(formData.get("installments") || "").trim(),
+          commission_note: String(formData.get("commission_note") || "").trim(),
+          payment_schedule: String(formData.get("payment_schedule") || "").trim(),
+        };
+        if (payload.tuition_amount !== null && payload.tuition_amount !== "") {
+          payload.tuition_amount = Number(payload.tuition_amount);
+        } else {
+          delete payload.tuition_amount;
+        }
+        if (payload.commission_rate !== null && payload.commission_rate !== "") {
+          payload.commission_rate = Number(payload.commission_rate);
+        } else {
+          delete payload.commission_rate;
+        }
+        if (payload.commission_amount !== null && payload.commission_amount !== "") {
+          payload.commission_amount = Number(payload.commission_amount);
+        } else {
+          delete payload.commission_amount;
+        }
+        if (payload.fee_waiver !== null && payload.fee_waiver !== "") {
+          payload.fee_waiver = Number(payload.fee_waiver);
+        } else {
+          delete payload.fee_waiver;
+        }
+        if (!payload.installments) delete payload.installments;
+        if (!payload.enrolled_program) delete payload.enrolled_program;
+        if (!payload.commission_note) delete payload.commission_note;
+        if (!payload.payment_schedule) delete payload.payment_schedule;
+        updateReferee(id, payload).catch((error) => alert(error.message));
+      });
     });
-    await loadAll();
   }
 
-  async function editCustomer(id) {
-    const item = state.customers.find((x) => x.id === id);
-    if (!item) return;
-    const name = prompt("Ten khach hang:", item.name);
-    if (!name) return;
-    const email = prompt("Email:", item.email || "") || "";
-    const phone = prompt("So dien thoai:", item.phone || "") || "";
-    const zalo = prompt("Zalo:", item.zalo || "") || "";
-    const registeredAt = prompt(
-      "Ngay dang ky (YYYY-MM-DD HH:MM:SS):",
-      item.registered_at || ""
+  async function loadReferrers() {
+    const data = await api("/api/referrers");
+    state.referrers = Array.isArray(data) ? data : [];
+    renderReferrers();
+    populateReferrerCodeSelect();
+  }
+
+  async function loadReferees(referrerCode = null) {
+    const code = referrerCode || "";
+    const url = code
+      ? `/api/referees?referrer_code=${encodeURIComponent(code)}`
+      : "/api/referees";
+    const data = await api(url);
+    state.referees = Array.isArray(data) ? data : [];
+    renderReferees();
+  }
+
+  async function toggleReferrerStatus(code, currentStatus) {
+    const nextStatus = String(currentStatus || "").trim() === "active" ? "inactive" : "active";
+    await api(`/api/referrers/${encodeURIComponent(code)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: nextStatus }),
+    });
+    await loadReferrers();
+  }
+
+  async function updateReferee(id, data) {
+    await api(`/api/referees/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    await loadReferees(state.activeReferrerCode);
+  }
+
+  function renderInstallmentsDetail(item) {
+    const installments = parseInstallments(item.installments);
+    if (!installments.length) {
+      return '<div class="empty">Chua co du lieu installments.</div>';
+    }
+    const rows = installments
+      .map(
+        (ins, idx) => `
+      <tr>
+        <td>${ins.installment_no || idx + 1}</td>
+        <td>${formatVND(ins.amount || 0)}</td>
+        <td>${escapeHtml(ins.due_date || "")}</td>
+        <td>${formatVND(ins.commission_amount || 0)}</td>
+        <td>${escapeHtml(ins.commission_due_date || "")}</td>
+        <td>
+          <label class="paid-check">
+            <input type="checkbox" data-referee-id="${item.id}" data-installment-index="${idx}" ${ins.commission_paid ? "checked" : ""} />
+            <span class="${ins.commission_paid ? "paid-badge" : ""}">${ins.commission_paid ? "Đã trả" : "Chưa trả"}</span>
+          </label>
+        </td>
+      </tr>`
+      )
+      .join("");
+    return `
+      <div class="expand-content">
+        <table class="installments-table compact">
+          <thead>
+            <tr>
+              <th>Đợt</th><th>Số tiền</th><th>Tháng đóng học phí</th><th>Com từng đợt</th><th>Tháng trả hoa hồng</th><th>Đã trả hoa hồng</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+  document.getElementById("addReferrerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = {
+      name: document.getElementById("r_name").value,
+      phone: document.getElementById("r_phone").value,
+      email: document.getElementById("r_email").value,
+      bank_name: document.getElementById("r_bank_name").value,
+      bank_account: document.getElementById("r_bank_account").value,
+      bank_holder: document.getElementById("r_bank_holder").value,
+      notes: document.getElementById("r_notes").value,
+    };
+    const msg = document.getElementById("addReferrerMsg");
+    try {
+      const data = await api("/api/referrers", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      msg.textContent = `✓ Đã thêm. Mã: ${data.referral_code}`;
+      msg.style.color = "green";
+      e.target.reset();
+      await loadReferrers();
+    } catch (error) {
+      msg.textContent = error.message;
+      msg.style.color = "red";
+    }
+  });
+  document.getElementById("addRefereeForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const installments = collectInstallmentsFromForm();
+    const tuitionAmount = getMoneyInput(tuitionAmountEl);
+    const feeWaiver = getMoneyInput(feeWaiverEl);
+    const body = {
+      referrer_code: document.getElementById("rf_referrer_code").value,
+      name: document.getElementById("rf_name").value,
+      phone: document.getElementById("rf_phone").value,
+      email: document.getElementById("rf_email").value,
+      enrolled_program: enrolledProgramEl.value,
+      tuition_amount: tuitionAmount,
+      fee_waiver: feeWaiver,
+      net_tuition: getMoneyInput(netTuitionEl),
+      commission_rate: parseRate(commissionRateEl.value, 0.05),
+      commission_amount: getMoneyInput(commissionAmountEl),
+      financial_plan: financialPlanEl.value,
+      installments: JSON.stringify(installments),
+    };
+    const msg = document.getElementById("addRefereeMsg");
+    try {
+      await api("/api/referees", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      msg.textContent = "✓ Đã thêm referee thành công";
+      msg.style.color = "green";
+      e.target.reset();
+      populateReferrerCodeSelect();
+      setMoneyInput(feeWaiverEl, 0);
+      setMoneyInput(tuitionAmountEl, 0);
+      setMoneyInput(netTuitionEl, 0);
+      setMoneyInput(commissionAmountEl, 0);
+      commissionRateEl.value = 0.05;
+      installmentCountEl.value = 2;
+      setMoneyInput(upfrontAmountEl, 0);
+      financialPlanEl.value = "full";
+      updatePlanFieldsVisibility();
+      enrollmentSectionEl.hidden = true;
+      installmentsWrapEl.innerHTML = "";
+      await loadReferees(state.activeReferrerCode);
+    } catch (error) {
+      msg.textContent = error.message;
+      msg.style.color = "red";
+    }
+  });
+
+  tabs.forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const tab = btn.dataset.tab;
+      tabs.forEach((item) => item.classList.toggle("active", item === btn));
+      Object.entries(panels).forEach(([key, panel]) => {
+        panel.classList.toggle("active", key === tab);
+      });
+      if (tab === "referrers") await loadReferrers();
+      if (tab === "referees") {
+        await loadReferrers();
+        populateReferrerCodeSelect(state.activeReferrerCode);
+        if (!state.programs.length) await loadPrograms();
+        refreshEnrollmentVisibility();
+        if (!enrollmentSectionEl.hidden) {
+          recalcNetFromTuitionAndWaiver();
+          recalcCommission();
+          generateInstallments();
+        }
+        await loadReferees(state.activeReferrerCode);
+      }
+    });
+  });
+
+  basicRefereeInputs.forEach((input) => {
+    const onBasicChange = () => {
+      refreshEnrollmentVisibility();
+      if (!enrollmentSectionEl.hidden && !installmentsWrapEl.innerHTML) {
+        setMoneyInput(feeWaiverEl, getMoneyInput(feeWaiverEl));
+        recalcNetFromTuitionAndWaiver();
+        recalcCommission();
+        generateInstallments();
+      }
+    };
+    input.addEventListener("input", onBasicChange);
+    if (input.tagName === "SELECT") {
+      input.addEventListener("change", onBasicChange);
+    }
+  });
+  bindMoneyInput(tuitionAmountEl, () => {
+    recalcNetFromTuitionAndWaiver();
+    recalcCommission();
+    generateInstallments();
+  });
+  bindMoneyInput(feeWaiverEl, () => {
+    recalcNetFromTuitionAndWaiver();
+    recalcCommission();
+    generateInstallments();
+  });
+  bindMoneyInput(netTuitionEl, () => {
+    recalcCommission();
+    generateInstallments();
+  });
+  bindMoneyInput(commissionAmountEl, () => {
+    generateInstallments();
+  });
+
+  enrolledProgramEl.addEventListener("change", () => {
+    const selected = state.programs.find((p) => p.program_slug === enrolledProgramEl.value);
+    if (selected) setMoneyInput(tuitionAmountEl, Number(selected.price_after || 0));
+    recalcNetFromTuitionAndWaiver();
+    recalcCommission();
+    generateInstallments();
+  });
+  commissionRateEl.addEventListener("input", () => {
+    recalcCommission();
+    generateInstallments();
+  });
+  bindMoneyInput(upfrontAmountEl, () => generateInstallments());
+  financialPlanEl.addEventListener("change", () => generateInstallments());
+  installmentCountEl.addEventListener("input", () => generateInstallments());
+
+  document.getElementById("referees-table-wrap").addEventListener("change", (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    if (!input.matches("[data-installment-index][data-referee-id]")) return;
+    const refereeId = Number(input.dataset.refereeId);
+    const idx = Number(input.dataset.installmentIndex);
+    const row = state.referees.find((r) => Number(r.id) === refereeId);
+    if (!row) return;
+    const installments = parseInstallments(row.installments);
+    if (!installments[idx]) return;
+    installments[idx].commission_paid = input.checked;
+    updateReferee(refereeId, { installments: JSON.stringify(installments) }).catch((error) =>
+      alert(error.message)
     );
-    if (registeredAt === null) return;
-    await api(`/api/customers/${id}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        name,
-        email,
-        phone,
-        zalo,
-        registered_at: registeredAt || null,
-      }),
-    });
-    await loadAll();
-  }
-
-  async function deleteCustomer(id) {
-    if (!confirm("Xoa khach hang nay?")) return;
-    await api(`/api/customers/${id}`, { method: "DELETE" });
-    await loadAll();
-  }
-
-  async function addOrder() {
-    if (!state.customers.length) {
-      alert("Can co it nhat 1 khach hang.");
-      return;
-    }
-    if (!state.products.length) {
-      alert("Can co it nhat 1 san pham.");
-      return;
-    }
-    const customerList = state.customers
-      .map((c) => `${c.id} - ${c.name}${c.email ? " (" + c.email + ")" : ""}`)
-      .join("\n");
-    const productList = state.products
-      .map((p) => `${p.id} - ${p.name} (ton: ${p.stock_quantity})`)
-      .join("\n");
-    const customerIdInput = prompt(`Nhap customer_id:\n${customerList}`);
-    if (!customerIdInput) return;
-    const productIdInput = prompt(`Nhap product_id:\n${productList}`);
-    if (!productIdInput) return;
-    const amount = prompt("So tien don hang:");
-    if (amount === null) return;
-    const status = prompt("Trang thai (pending/paid/cancelled):", "pending") || "pending";
-    const purchasedAt = prompt("Ngay mua (YYYY-MM-DD HH:MM:SS), bo trong de lay hien tai:", "") || null;
-    const customerId = parsePromptId(customerIdInput);
-    const productId = parsePromptId(productIdInput);
-    const amountValue = parseMoney(amount);
-    if (!Number.isFinite(customerId) || customerId <= 0) {
-      alert("customer_id khong hop le. Nhap ID so, vi du: 1");
-      return;
-    }
-    if (!Number.isFinite(productId) || productId <= 0) {
-      alert("product_id khong hop le. Nhap ID so, vi du: 1");
-      return;
-    }
-    if (!Number.isFinite(amountValue) || amountValue < 0) {
-      alert("So tien khong hop le. Nhap so duong, vi du: 100000");
-      return;
-    }
-    const product = state.products.find((p) => Number(p.id) === productId);
-    if (!product) {
-      alert("Khong tim thay san pham theo product_id da nhap.");
-      return;
-    }
-    if (Number(product.stock_quantity || 0) <= 0) {
-      alert("San pham nay da het hang (ton kho = 0), khong the tao don.");
-      return;
-    }
-
-    await api("/api/orders", {
-      method: "POST",
-      body: JSON.stringify({
-        customer_id: customerId,
-        product_id: productId,
-        amount: amountValue,
-        status,
-        purchased_at: purchasedAt,
-      }),
-    });
-    await loadAll();
-  }
-
-  async function editOrder(id) {
-    const item = state.orders.find((x) => x.id === id);
-    if (!item) return;
-    const customerList = state.customers
-      .map((c) => `${c.id} - ${c.name}${c.email ? " (" + c.email + ")" : ""}`)
-      .join("\n");
-    const productList = state.products.map((p) => `${p.id} - ${p.name}`).join("\n");
-
-    const customerId = prompt(`Nhap customer_id:\n${customerList}`, String(item.customer_id));
-    if (!customerId) return;
-    const productId = prompt(`Nhap product_id:\n${productList}`, String(item.product_id));
-    if (!productId) return;
-    const amount = prompt("So tien don hang:", String(item.amount));
-    if (amount === null) return;
-    const status = prompt("Trang thai:", item.status || "pending");
-    if (!status) return;
-    const purchasedAt = prompt("Ngay mua (YYYY-MM-DD HH:MM:SS):", item.purchased_at || "");
-    if (purchasedAt === null) return;
-
-    await api(`/api/orders/${id}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        customer_id: Number(customerId),
-        product_id: Number(productId),
-        amount: Number(amount),
-        status,
-        purchased_at: purchasedAt || null,
-      }),
-    });
-    await loadAll();
-  }
-
-  async function deleteOrder(id) {
-    if (!confirm("Xoa don hang nay?")) return;
-    await api(`/api/orders/${id}`, { method: "DELETE" });
-    await loadAll();
-  }
-
-  async function confirmPayment(id) {
-    if (!confirm("Xác nhận đã nhận tiền cho đơn này? Trạng thái sẽ chuyển sang success.")) return;
-    await api(`/api/orders/${id}/confirm`, { method: "PUT", body: "{}" });
-    await loadAll();
-  }
-
-  document.getElementById("add-product-btn").addEventListener("click", () => {
-    addProduct().catch((error) => alert(error.message));
-  });
-  document.getElementById("add-customer-btn").addEventListener("click", () => {
-    addCustomer().catch((error) => alert(error.message));
-  });
-  document.getElementById("add-order-btn").addEventListener("click", () => {
-    addOrder().catch((error) => alert(error.message));
   });
 
-  loadAll().catch((error) => {
+  Promise.all([loadReferrers(), loadReferees()]).catch((error) => {
     alert(`Khong tai duoc du lieu: ${error.message}`);
   });
 })();

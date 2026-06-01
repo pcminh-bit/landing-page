@@ -151,6 +151,15 @@ async function handleApiPostgres(req, res, url, deps) {
   }
 
   try {
+    if (
+      url.pathname === "/api/digital-health" ||
+      url.pathname === "/api/digital-payment-orders" ||
+      /^\/api\/digital-products\/[a-z0-9-]+\/?$/.test(url.pathname) ||
+      /^\/api\/digital-download\/[A-Za-z0-9]+\/?$/.test(url.pathname)
+    ) {
+      return sendJson(res, 410, { error: "Digital product flow is no longer available." });
+    }
+
     if (req.method === "GET" && url.pathname === "/api/cron/email-sequence") {
       const cronChk = cronEmailSequenceUnauthorized(req, url);
       if (cronChk.reason === "no_secret") {

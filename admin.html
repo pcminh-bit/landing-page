@@ -4,46 +4,164 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Panel</title>
-  <link rel="stylesheet" href="/admin.css?v=3" />
+  <link rel="stylesheet" href="/admin.css?v=6" />
 </head>
 <body>
   <main class="admin-wrap">
     <h1>Admin Panel</h1>
     <p id="store-banner" class="store-banner" hidden></p>
-    <p class="subtitle">Quản lý Sản phẩm, Khách hàng và Đơn hàng</p>
+    <p class="subtitle">Quản lý Referrers và Referees</p>
 
     <div class="tabs">
-      <button class="tab-btn active" data-tab="products">Sản phẩm</button>
-      <button class="tab-btn" data-tab="customers">Khách hàng</button>
-      <button class="tab-btn" data-tab="orders">Đơn hàng</button>
+      <button class="tab-btn active" data-tab="referrers">Referrers</button>
+      <button class="tab-btn" data-tab="referees">Referees</button>
     </div>
 
-    <section class="tab-panel active" id="products-panel">
+    <section class="tab-panel active" id="referrers-panel">
       <div class="panel-header">
-        <h2>Sản phẩm</h2>
-        <button id="add-product-btn">+ Thêm sản phẩm</button>
+        <h2>Referrers</h2>
       </div>
-      <div id="products-table-wrap"></div>
+      <form id="addReferrerForm" class="referral-form">
+        <h3>Thêm Referrer mới</h3>
+        <div class="form-grid">
+          <div class="field-group">
+            <label for="r_name">Họ và tên *</label>
+            <span class="field-hint">Tên đầy đủ của người giới thiệu</span>
+            <input type="text" id="r_name" required />
+          </div>
+          <div class="field-group">
+            <label for="r_phone">Số điện thoại *</label>
+            <span class="field-hint">Dùng để tạo mã referral (ref-sốđiệnthoại)</span>
+            <input type="tel" id="r_phone" required />
+          </div>
+          <div class="field-group">
+            <label for="r_email">Email *</label>
+            <span class="field-hint">Email nhận thông báo welcome</span>
+            <input type="email" id="r_email" required />
+          </div>
+          <div class="field-group">
+            <label for="r_bank_name">Tên ngân hàng</label>
+            <span class="field-hint">VD: Vietcombank, Techcombank</span>
+            <input type="text" id="r_bank_name" />
+          </div>
+          <div class="field-group">
+            <label for="r_bank_account">Số tài khoản</label>
+            <span class="field-hint">Số TK nhận hoa hồng</span>
+            <input type="text" id="r_bank_account" />
+          </div>
+          <div class="field-group">
+            <label for="r_bank_holder">Chủ tài khoản</label>
+            <span class="field-hint">Tên chủ TK (in hoa, không dấu nếu bank yêu cầu)</span>
+            <input type="text" id="r_bank_holder" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="r_notes">Ghi chú</label>
+          <span class="field-hint">Thông tin thêm về referrer (tùy chọn)</span>
+          <textarea id="r_notes" rows="2"></textarea>
+        </div>
+        <button type="submit">Thêm Referrer</button>
+      </form>
+      <div id="addReferrerMsg" class="form-msg"></div>
+      <div id="referrers-table-wrap"></div>
     </section>
 
-    <section class="tab-panel" id="customers-panel">
+    <section class="tab-panel" id="referees-panel">
       <div class="panel-header">
-        <h2>Khách hàng</h2>
-        <button id="add-customer-btn">+ Thêm khách hàng</button>
+        <h2>Referees</h2>
       </div>
-      <div id="customers-table-wrap"></div>
-    </section>
+      <form id="addRefereeForm" class="referral-form">
+        <h3>Thêm Referee mới</h3>
+        <div class="form-grid">
+          <div class="field-group">
+            <label for="rf_referrer_code">Mã referral *</label>
+            <span class="field-hint">Chọn referrer đang active — hoặc bấm "Xem" ở tab Referrers để tự chọn</span>
+            <select id="rf_referrer_code" required>
+              <option value="">— Chọn mã referral —</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="rf_name">Họ tên học viên *</label>
+            <span class="field-hint">Tên học viên được giới thiệu</span>
+            <input type="text" id="rf_name" required />
+          </div>
+          <div class="field-group">
+            <label for="rf_phone">Số điện thoại *</label>
+            <span class="field-hint">SĐT liên hệ học viên</span>
+            <input type="tel" id="rf_phone" required />
+          </div>
+          <div class="field-group">
+            <label for="rf_email">Email *</label>
+            <span class="field-hint">Email học viên (gửi xác nhận)</span>
+            <input type="email" id="rf_email" required />
+          </div>
+        </div>
 
-    <section class="tab-panel" id="orders-panel">
-      <div class="panel-header">
-        <h2>Đơn hàng</h2>
-        <button id="add-order-btn">+ Thêm đơn hàng</button>
-      </div>
-      <p class="panel-hint">Nút <strong>Xác nhận thanh toán</strong> chỉ hiện khi đơn có trạng thái <strong>pending</strong>. Đơn đã success sẽ không có nút. Thử: tạo đơn từ trang <a href="/payment">/payment</a> hoặc Thêm đơn hàng với trạng thái pending.</p>
-      <div id="orders-table-wrap"></div>
+        <div id="enrollmentSection" class="enrollment-section" hidden>
+          <h3>Thông tin nhập học</h3>
+          <div class="form-grid">
+            <div class="field-group field-group-full">
+              <label for="rf_enrolled_program">Chương trình đăng ký</label>
+              <span class="field-hint">Chọn từ danh sách — học phí tự điền theo chương trình</span>
+              <select id="rf_enrolled_program">
+                <option value="">Chọn chương trình</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label for="rf_tuition_amount">Học phí gốc (VNĐ)</label>
+              <span class="field-hint">Giá chương trình, có thể sửa tay</span>
+              <input type="text" id="rf_tuition_amount" class="money-input" inputmode="numeric" autocomplete="off" />
+            </div>
+            <div class="field-group">
+              <label for="rf_fee_waiver">Fee Waiver (VNĐ)</label>
+              <span class="field-hint">Số tiền miễn/giảm phí — mặc định 0</span>
+              <input type="text" id="rf_fee_waiver" class="money-input" inputmode="numeric" value="0" autocomplete="off" />
+            </div>
+            <div class="field-group">
+              <label for="rf_net_tuition">Học phí ròng (VNĐ)</label>
+              <span class="field-hint">= Học phí gốc − Fee Waiver (có thể sửa)</span>
+              <input type="text" id="rf_net_tuition" class="money-input auto-net" inputmode="numeric" autocomplete="off" />
+            </div>
+            <div class="field-group">
+              <label for="rf_commission_rate">Tỷ lệ hoa hồng</label>
+              <span class="field-hint">VD: 0.05 = 5% trên học phí ròng</span>
+              <input type="number" id="rf_commission_rate" value="0.05" step="0.01" min="0" max="1" />
+            </div>
+            <div class="field-group">
+              <label for="rf_commission_amount">Tổng hoa hồng (VNĐ)</label>
+              <span class="field-hint">= Học phí ròng × Tỷ lệ (có thể sửa)</span>
+              <input type="text" id="rf_commission_amount" class="money-input auto-commission" inputmode="numeric" autocomplete="off" />
+            </div>
+            <div class="field-group">
+              <label for="rf_financial_plan">Hình thức thanh toán</label>
+              <span class="field-hint">Full / Trả góp / Trả trước một phần rồi góp phần còn lại</span>
+              <select id="rf_financial_plan">
+                <option value="full">Thanh toán full</option>
+                <option value="installment">Trả góp toàn bộ</option>
+                <option value="partial_installment">Trả trước một phần + phần còn lại trả góp</option>
+              </select>
+            </div>
+            <div class="field-group" id="upfrontAmountGroup" hidden>
+              <label for="rf_upfront_amount">Số tiền trả trước (VNĐ)</label>
+              <span class="field-hint">Đợt 1 — phần còn lại sẽ chia theo số đợt góp bên dưới</span>
+              <input type="text" id="rf_upfront_amount" class="money-input" inputmode="numeric" autocomplete="off" />
+            </div>
+            <div class="field-group" id="installmentCountGroup" hidden>
+              <label for="rf_installment_count">Số đợt trả góp (phần còn lại)</label>
+              <span class="field-hint">Từ 2 đến 6 đợt (không tính đợt trả trước)</span>
+              <input type="number" id="rf_installment_count" min="2" max="6" value="2" />
+            </div>
+          </div>
+          <p class="field-hint installments-hint">Bảng dưới: số tiền có dấu phẩy; Com từng đợt tự tính theo tỷ lệ hoa hồng.</p>
+          <div id="installmentsTableWrap"></div>
+        </div>
+        <button type="submit">Thêm Referee</button>
+      </form>
+      <div id="addRefereeMsg" class="form-msg"></div>
+      <div id="referees-table-wrap"></div>
     </section>
   </main>
 
-  <script src="/admin.js?v=3"></script>
+  <script src="/admin.js?v=6"></script>
 </body>
 </html>

@@ -11,18 +11,6 @@
       "handle": "filesystem"
     },
     {
-      "src": "/san-pham/linkedin-easy-posting-machine",
-      "dest": "/san-pham/linkedin-easy-posting-machine/"
-    },
-    {
-      "src": "/san-pham/linkedin-easy-posting-machine/checkout",
-      "dest": "/san-pham/linkedin-easy-posting-machine/checkout/"
-    },
-    {
-      "src": "/san-pham/linkedin-easy-posting-machine/cam-on",
-      "dest": "/san-pham/linkedin-easy-posting-machine/cam-on/"
-    },
-    {
       "src": "/(.*)",
       "dest": "server.js"
     }

@@ -29,6 +29,9 @@ const {
   notifyWaitlistSignup,
   sendOrderCreatedConfirmation,
   sendDigitalProductDelivery,
+  sendResendEmail,
+  loadResendApiKey,
+  loadResendFromEmail,
 } = require("./resend-mail");
 const { getDigitalProduct } = require("./digital-products");
 const {
@@ -139,6 +142,16 @@ CREATE TABLE IF NOT EXISTS email_sequence_jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_email_seq_pending ON email_sequence_jobs(send_at, sent_at);
 `);
+
+try {
+  db.exec("ALTER TABLE referees ADD COLUMN fee_waiver INTEGER DEFAULT 0");
+} catch (e) {}
+try {
+  db.exec("ALTER TABLE referees ADD COLUMN financial_plan TEXT DEFAULT 'full'");
+} catch (e) {}
+try {
+  db.exec("ALTER TABLE referees ADD COLUMN installments TEXT");
+} catch (e) {}
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -449,8 +462,272 @@ async function tryFulfillDigitalOrder(req, orderId) {
   }
 }
 
+const emailFooter = `
+<div style="background:#1f2937;padding:20px 28px;">
+  <div style="display:flex;gap:16px;align-items:flex-start;">
+    <div style="width:40px;height:40px;border-radius:50%;background:#E50913;display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:600;flex-shrink:0;">MP</div>
+    <div style="font-size:12px;color:#d1d5db;line-height:1.8;">
+      <div style="font-size:11px;color:#9ca3af;">Đại diện upGrad hỗ trợ</div>
+      <strong style="color:white;font-size:13px;">Minh Phạm</strong><br>
+      <span style="font-size:11px;color:#9ca3af;">Regional Manager — Quan hệ Đối tác và Doanh nghiệp</span><br>
+      📱 <a href="tel:0898461363" style="color:#93c5fd;text-decoration:none;">0898 461 363</a>
+      &nbsp;|&nbsp;
+      ✉️ <a href="mailto:minh.pham@upgrad.com" style="color:#93c5fd;text-decoration:none;">minh.pham@upgrad.com</a>
+      &nbsp;|&nbsp;
+      <a href="https://www.linkedin.com/in/minhphamc/" style="color:#93c5fd;text-decoration:none;">linkedin.com/in/minhphamc</a>
+    </div>
+  </div>
+  <hr style="border:none;border-top:1px solid #374151;margin:14px 0;">
+  <p style="font-size:11px;color:#6b7280;text-align:center;margin:0;">© 2026 hocbong-upgrad.com</p>
+</div>
+`;
+
+const REFERRAL_MAIL_FROM =
+  "Trần Tuấn Anh — Đại lý Tuyển sinh Chiến lược - upGrad Việt Nam <tuananh@hocbong-upgrad.com>";
+
+function resolveReferralMailFrom() {
+  const configured = String(loadResendFromEmail() || "").trim();
+  if (!configured) return REFERRAL_MAIL_FROM;
+  if (configured.includes("<")) return configured;
+  return `Trần Tuấn Anh — Đại lý Tuyển sinh Chiến lược - upGrad Việt Nam <${configured}>`;
+}
+
+async function sendReferrerWelcomeEmail(referrer) {
+  try {
+    if (!referrer.email) return;
+    const apiKey = loadResendApiKey();
+    if (!apiKey) return;
+    await sendResendEmail(apiKey, {
+      from: resolveReferralMailFrom(),
+      to: referrer.email,
+      subject: `Mã giới thiệu của bạn: ${referrer.referral_code}`,
+      html: `
+<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;color:#404040;">
+  <div style="background:#E50913;padding:20px 28px;">
+    <h1 style="color:white;margin:0;font-size:20px;font-weight:600;">Chào mừng bạn tham gia Chương trình Giới thiệu học viên — nhận liền bonus!</h1>
+  </div>
+  <div style="padding:24px 28px;background:white;">
+    <p style="margin:0 0 12px;line-height:1.6;">Xin chào <strong>${referrer.name}</strong>,</p>
+    <p style="margin:0 0 12px;line-height:1.6;">Cảm ơn bạn đã đăng ký tham gia chương trình giới thiệu học viên của upGrad Việt Nam.</p>
+
+    <div style="background:#f8f9fa;border-left:4px solid #E50913;padding:16px 20px;margin:16px 0;">
+      <p style="margin:0 0 6px;font-size:11px;color:#6b7280;letter-spacing:0.5px;text-transform:uppercase;">Mã giới thiệu của bạn</p>
+      <p style="margin:0;font-size:24px;font-weight:700;color:#E50913;letter-spacing:2px;">${referrer.referral_code}</p>
+    </div>
+
+    <p style="margin:0 0 8px;line-height:1.6;"><strong>Cách thức hoạt động:</strong></p>
+    <ol style="padding-left:20px;margin:0 0 16px;">
+      <li style="line-height:2;font-size:14px;">Giới thiệu người quen quan tâm đến các chương trình Thạc sĩ, Tiến sĩ của upGrad</li>
+      <li style="line-height:2;font-size:14px;">Gửi thông tin người được giới thiệu về cho tôi qua Zalo: <strong>0917 500 437</strong></li>
+      <li style="line-height:2;font-size:14px;">Khi học viên đăng ký nhập học, bạn nhận hoa hồng <strong>5% học phí thực thu</strong></li>
+      <li style="line-height:2;font-size:14px;">Hoa hồng được thanh toán qua chuyển khoản theo tiến độ thu học phí</li>
+    </ol>
+
+    <div style="background:#fff7ed;border:1px solid #fed7aa;padding:14px 16px;border-radius:6px;margin:16px 0;font-size:13px;color:#9a3412;">
+      Hoa hồng sẽ được xác nhận bằng email sau khi học viên hoàn tất thủ tục nhập học. Mức hoa hồng cụ thể phụ thuộc vào học phí thực thu của từng học viên.
+    </div>
+
+    <p style="margin:0 0 12px;line-height:1.6;">Nếu có câu hỏi: 📱 Zalo <strong>0917 500 437</strong> &nbsp;|&nbsp; 📧 <strong>tuananh@hocbong-upgrad.com</strong></p>
+
+    <div style="margin-top:20px;font-size:14px;line-height:1.8;">
+      Trân trọng,<br>
+      <strong>Trần Tuấn Anh</strong><br>
+      Đại lý Tuyển sinh Chiến lược — upGrad Việt Nam
+    </div>
+  </div>
+  ${emailFooter}
+</div>`,
+      _logLabel: "referrer-welcome",
+    });
+  } catch (err) {
+    console.error("sendReferrerWelcomeEmail error:", err.message);
+  }
+}
+
+async function sendRefereeConfirmationEmail(referee, referrer) {
+  try {
+    if (!referrer.email) return;
+    const apiKey = loadResendApiKey();
+    if (!apiKey) return;
+    await sendResendEmail(apiKey, {
+      from: resolveReferralMailFrom(),
+      to: referrer.email,
+      subject: `Đã ghi nhận giới thiệu: ${referee.name}`,
+      html: `
+<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;color:#404040;">
+  <div style="background:#E50913;padding:20px 28px;">
+    <h1 style="color:white;margin:0;font-size:20px;font-weight:600;">Đã ghi nhận người bạn giới thiệu</h1>
+  </div>
+  <div style="padding:24px 28px;background:white;">
+    <p style="margin:0 0 12px;line-height:1.6;">Xin chào <strong>${referrer.name}</strong>,</p>
+    <p style="margin:0 0 12px;line-height:1.6;">Tôi đã ghi nhận thông tin học viên bạn giới thiệu. Dưới đây là chi tiết:</p>
+
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;">
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;width:42%;">Họ và tên</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;"><strong>${referee.name}</strong></td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Số điện thoại</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;">${referee.phone}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Email</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;">${referee.email || "—"}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Chương trình quan tâm</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;">${referee.enrolled_program || referee.program_interest || "—"}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Mã giới thiệu</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;font-weight:700;color:#E50913;">${referrer.referral_code}</td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 12px;line-height:1.6;">Tôi sẽ liên hệ với học viên này trong thời gian sớm nhất. Khi học viên đăng ký nhập học thành công, bạn sẽ nhận email xác nhận hoa hồng chi tiết.</p>
+    <p style="margin:0 0 12px;line-height:1.6;">Muốn giới thiệu thêm? Gửi thông tin qua Zalo: <strong>0917 500 437</strong></p>
+
+    <div style="margin-top:20px;font-size:14px;line-height:1.8;">
+      Trân trọng,<br>
+      <strong>Trần Tuấn Anh</strong><br>
+      Đại lý Tuyển sinh Chiến lược — upGrad Việt Nam
+    </div>
+  </div>
+  ${emailFooter}
+</div>`,
+      _logLabel: "referee-confirmation",
+    });
+  } catch (err) {
+    console.error("sendRefereeConfirmationEmail error:", err.message);
+  }
+}
+
+async function sendCommissionEmail(referee, referrer) {
+  try {
+    if (!referrer.email) return;
+    const apiKey = loadResendApiKey();
+    if (!apiKey) return;
+
+    const installments =
+      typeof referee.installments === "string"
+        ? JSON.parse(referee.installments || "[]")
+        : referee.installments || [];
+
+    const installmentRows = installments
+      .map(
+        (inst) => `
+      <tr>
+        <td style="padding:8px 10px;border:1px solid #e9ecef;text-align:center;">Đợt ${inst.installment_no}</td>
+        <td style="padding:8px 10px;border:1px solid #e9ecef;text-align:right;">${Number(inst.amount).toLocaleString("vi-VN")} VNĐ</td>
+        <td style="padding:8px 10px;border:1px solid #e9ecef;text-align:center;">${inst.due_date}</td>
+        <td style="padding:8px 10px;border:1px solid #e9ecef;text-align:right;color:#E50913;font-weight:600;">${Number(inst.commission_amount).toLocaleString("vi-VN")} VNĐ</td>
+        <td style="padding:8px 10px;border:1px solid #e9ecef;text-align:center;">${inst.commission_due_date}</td>
+      </tr>`
+      )
+      .join("");
+
+    const feeWaiverRow =
+      Number(referee.fee_waiver) > 0
+        ? `
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Fee Waiver</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;">−${Number(referee.fee_waiver).toLocaleString("vi-VN")} VNĐ</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Học phí thực tính hoa hồng</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;">${(Number(referee.tuition_amount) - Number(referee.fee_waiver)).toLocaleString("vi-VN")} VNĐ</td>
+      </tr>`
+        : "";
+
+    await sendResendEmail(apiKey, {
+      from: resolveReferralMailFrom(),
+      to: referrer.email,
+      subject: `Xác nhận hoa hồng giới thiệu — ${referee.name}`,
+      html: `
+<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;color:#404040;">
+  <div style="background:#E50913;padding:20px 28px;">
+    <h1 style="color:white;margin:0;font-size:20px;font-weight:600;">Xác nhận Hoa hồng Giới thiệu</h1>
+  </div>
+  <div style="padding:24px 28px;background:white;">
+    <p style="margin:0 0 12px;line-height:1.6;">Xin chào <strong>${referrer.name}</strong>,</p>
+    <p style="margin:0 0 12px;line-height:1.6;">Tôi xác nhận chính thức khoản hoa hồng giới thiệu cho học viên bạn đã giới thiệu:</p>
+
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;">
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;width:42%;">Tên học viên</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;"><strong>${referee.name}</strong></td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Chương trình</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;">${referee.enrolled_program}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Học phí</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;">${Number(referee.tuition_amount).toLocaleString("vi-VN")} VNĐ</td>
+      </tr>
+      ${feeWaiverRow}
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Tỷ lệ hoa hồng</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;">${(Number(referee.commission_rate) * 100).toFixed(0)}%</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#fff7ed;font-weight:700;color:#E50913;">Tổng hoa hồng</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;background:#fff7ed;font-weight:700;color:#E50913;font-size:16px;">${Number(referee.commission_amount).toLocaleString("vi-VN")} VNĐ</td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 8px;line-height:1.6;"><strong>Lịch thanh toán hoa hồng:</strong></p>
+    <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:12px;">
+      <thead>
+        <tr style="background:#E50913;color:white;">
+          <th style="padding:8px 10px;text-align:center;border:1px solid #c0392b;">Đợt</th>
+          <th style="padding:8px 10px;text-align:right;border:1px solid #c0392b;">Học phí đợt</th>
+          <th style="padding:8px 10px;text-align:center;border:1px solid #c0392b;">Tháng đóng HF</th>
+          <th style="padding:8px 10px;text-align:right;border:1px solid #c0392b;">Hoa hồng</th>
+          <th style="padding:8px 10px;text-align:center;border:1px solid #c0392b;">Dự kiến trả</th>
+        </tr>
+      </thead>
+      <tbody>${installmentRows}</tbody>
+    </table>
+
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px 16px;border-radius:6px;margin:16px 0;font-size:14px;color:#166534;">
+      Chân thành cảm ơn sự tin tưởng và hỗ trợ của bạn trong việc giới thiệu học viên cho các chương trình của upGrad Việt Nam. Sự đồng hành của bạn là động lực để tôi tiếp tục mang đến những cơ hội học tập tốt nhất cho cộng đồng.
+    </div>
+
+    <div style="background:#fff7ed;border:1px solid #fed7aa;padding:14px 16px;border-radius:6px;margin:16px 0;font-size:13px;color:#9a3412;">
+      Hoa hồng được thanh toán theo tiến độ thu học phí thực tế. Số tiền thực nhận có thể chênh lệch nhỏ do phí giao dịch ngân hàng. Vui lòng phản hồi email này để xác nhận thông tin tài khoản nhận hoa hồng.
+    </div>
+
+    <p style="margin:0 0 12px;line-height:1.6;">Phương thức thanh toán: <strong>Chuyển khoản trực tiếp</strong> vào tài khoản của bạn.</p>
+    <p style="margin:0 0 12px;line-height:1.6;">📱 Zalo: <strong>0917 500 437</strong> &nbsp;|&nbsp; 📧 <strong>tuananh@hocbong-upgrad.com</strong></p>
+
+    <div style="margin-top:20px;font-size:14px;line-height:1.8;">
+      Trân trọng,<br>
+      <strong>Trần Tuấn Anh</strong><br>
+      Đại lý Tuyển sinh Chiến lược — upGrad Việt Nam
+    </div>
+  </div>
+  ${emailFooter}
+</div>`,
+      _logLabel: "referral-commission",
+    });
+  } catch (err) {
+    console.error("sendCommissionEmail error:", err.message);
+  }
+}
+
 async function handleApi(req, res, url) {
   try {
+    if (
+      url.pathname === "/api/digital-health" ||
+      url.pathname === "/api/digital-payment-orders" ||
+      /^\/api\/digital-products\/[a-z0-9-]+\/?$/.test(url.pathname) ||
+      /^\/api\/digital-download\/[A-Za-z0-9]+\/?$/.test(url.pathname)
+    ) {
+      return sendJson(res, 410, { error: "Digital product flow is no longer available." });
+    }
+
     if (req.method === "GET" && url.pathname === "/api/cron/email-sequence") {
       const cronChk = cronEmailSequenceUnauthorized(req, url);
       if (cronChk.reason === "no_secret") {
@@ -475,26 +752,6 @@ async function handleApi(req, res, url) {
         buildId: SERVER_BUILD_ID,
         postgres: Boolean(process.env.DATABASE_URL),
         vercel: Boolean(process.env.VERCEL),
-      });
-    }
-
-    if (req.method === "GET" && url.pathname === "/api/digital-health") {
-      const indexPath = resolveDigitalProductPath("index.html");
-      let readable = false;
-      if (indexPath) {
-        try {
-          fs.accessSync(indexPath, fs.constants.R_OK);
-          readable = true;
-        } catch {
-          readable = false;
-        }
-      }
-      return sendJson(res, 200, {
-        buildId: SERVER_BUILD_ID,
-        root: ROOT,
-        uid: process.getuid?.() ?? null,
-        indexPath,
-        readable,
       });
     }
 
@@ -541,6 +798,264 @@ async function handleApi(req, res, url) {
         return sendJson(res, 404, { error: "Not found" });
       }
       return sendJson(res, 200, row);
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/referrers") {
+      const body = await readJsonBody(req);
+      const name = String(body.name || "").trim();
+      const email = String(body.email || "").trim();
+      const phone = String(body.phone || "").trim();
+      if (!name || !email || !phone) {
+        return sendJson(res, 400, { error: "name, email, phone là bắt buộc" });
+      }
+
+      const phoneDigits = phone.replace(/\D/g, "");
+      if (!phoneDigits) {
+        return sendJson(res, 400, { error: "Số điện thoại không hợp lệ" });
+      }
+      const referralCode = `ref-${phoneDigits}`;
+      const existing = db
+        .prepare("SELECT id FROM referrers WHERE referral_code = ? LIMIT 1")
+        .get(referralCode);
+      if (existing) {
+        return sendJson(res, 409, { error: "Số điện thoại này đã có mã referral" });
+      }
+
+      const result = db
+        .prepare(
+          `INSERT INTO referrers(name, email, phone, referral_code, bank_name, bank_account, bank_holder, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          name,
+          email,
+          phone,
+          referralCode,
+          body.bank_name || null,
+          body.bank_account || null,
+          body.bank_holder || null,
+          body.notes || null
+        );
+      const referrer = db
+        .prepare("SELECT * FROM referrers WHERE id = ? LIMIT 1")
+        .get(Number(result.lastInsertRowid));
+      sendReferrerWelcomeEmail(referrer);
+      return sendJson(res, 201, referrer);
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/referrers") {
+      const rows = db
+        .prepare(
+          `SELECT r.*,
+                  COUNT(re.id) AS referee_count
+           FROM referrers r
+           LEFT JOIN referees re ON re.referrer_code = r.referral_code
+           GROUP BY r.id
+           ORDER BY r.created_at DESC`
+        )
+        .all();
+      return sendJson(res, 200, rows);
+    }
+
+    const referrerByCodeMatch = url.pathname.match(/^\/api\/referrers\/([^/]+)\/?$/);
+    if (req.method === "GET" && referrerByCodeMatch) {
+      const code = decodeURIComponent(referrerByCodeMatch[1]);
+      const referrer = db
+        .prepare("SELECT * FROM referrers WHERE referral_code = ? LIMIT 1")
+        .get(code);
+      if (!referrer) {
+        return sendJson(res, 404, { error: "Not found" });
+      }
+      const referees = db
+        .prepare(
+          "SELECT * FROM referees WHERE referrer_code = ? ORDER BY created_at DESC"
+        )
+        .all(code);
+      return sendJson(res, 200, { ...referrer, referees });
+    }
+
+    if (req.method === "PATCH" && referrerByCodeMatch) {
+      const code = decodeURIComponent(referrerByCodeMatch[1]);
+      const referrer = db
+        .prepare("SELECT * FROM referrers WHERE referral_code = ? LIMIT 1")
+        .get(code);
+      if (!referrer) {
+        return sendJson(res, 404, { error: "Not found" });
+      }
+      const body = await readJsonBody(req);
+      const allowedFields = [
+        "status",
+        "bank_name",
+        "bank_account",
+        "bank_holder",
+        "notes",
+      ];
+      const updates = [];
+      const values = [];
+      for (const field of allowedFields) {
+        if (Object.prototype.hasOwnProperty.call(body, field)) {
+          updates.push(`${field} = ?`);
+          values.push(body[field]);
+        }
+      }
+      if (!updates.length) {
+        return sendJson(res, 400, { error: "Không có trường hợp lệ để cập nhật" });
+      }
+      values.push(code);
+      db.prepare(`UPDATE referrers SET ${updates.join(", ")} WHERE referral_code = ?`).run(
+        ...values
+      );
+      const updated = db
+        .prepare("SELECT * FROM referrers WHERE referral_code = ? LIMIT 1")
+        .get(code);
+      return sendJson(res, 200, updated);
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/referees") {
+      const body = await readJsonBody(req);
+      const referrerCode = String(body.referrer_code || "").trim();
+      const name = String(body.name || "").trim();
+      const phone = String(body.phone || "").trim();
+      const email = String(body.email || "").trim();
+      if (!referrerCode || !name || !phone || !email) {
+        return sendJson(res, 400, { error: "referrer_code, name, phone, email là bắt buộc" });
+      }
+
+      const referrer = db
+        .prepare("SELECT * FROM referrers WHERE referral_code = ? LIMIT 1")
+        .get(referrerCode);
+      if (!referrer) {
+        return sendJson(res, 404, { error: "Mã referral không tồn tại" });
+      }
+      if (String(referrer.status || "active") !== "active") {
+        return sendJson(res, 400, { error: "Mã referral không còn hiệu lực" });
+      }
+
+      const result = db
+        .prepare(
+          `INSERT INTO referees(
+             referrer_code, name, email, phone, enrolled_program, tuition_amount,
+             fee_waiver, commission_rate, commission_amount, financial_plan, installments, status
+           )
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`
+        )
+        .run(
+          referrerCode,
+          name,
+          email,
+          phone,
+          String(body.enrolled_program || "").trim() || null,
+          Number.isFinite(Number(body.tuition_amount)) ? Number(body.tuition_amount) : null,
+          Number.isFinite(Number(body.fee_waiver)) ? Number(body.fee_waiver) : 0,
+          Number.isFinite(Number(body.commission_rate)) ? Number(body.commission_rate) : 0.05,
+          Number.isFinite(Number(body.commission_amount)) ? Number(body.commission_amount) : null,
+          String(body.financial_plan || "full").trim() || "full",
+          String(body.installments || "").trim() || null
+        );
+      const referee = db
+        .prepare("SELECT * FROM referees WHERE id = ? LIMIT 1")
+        .get(Number(result.lastInsertRowid));
+      sendRefereeConfirmationEmail(referee, referrer);
+      return sendJson(res, 201, referee);
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/referees") {
+      const referrerCode = String(url.searchParams.get("referrer_code") || "").trim();
+      const status = String(url.searchParams.get("status") || "").trim();
+      const filters = [];
+      const args = [];
+      if (referrerCode) {
+        filters.push("referrer_code = ?");
+        args.push(referrerCode);
+      }
+      if (status) {
+        filters.push("status = ?");
+        args.push(status);
+      }
+      const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+      const rows = db
+        .prepare(`SELECT * FROM referees ${whereClause} ORDER BY created_at DESC`)
+        .all(...args);
+      return sendJson(res, 200, rows);
+    }
+
+    const refereeByIdMatch = url.pathname.match(/^\/api\/referees\/(\d+)\/?$/);
+    if (req.method === "PATCH" && refereeByIdMatch) {
+      const refereeId = Number(refereeByIdMatch[1]);
+      const existing = db
+        .prepare("SELECT * FROM referees WHERE id = ? LIMIT 1")
+        .get(refereeId);
+      if (!existing) {
+        return sendJson(res, 404, { error: "Not found" });
+      }
+
+      const body = await readJsonBody(req);
+      const allowedFields = [
+        "status",
+        "enrolled_program",
+        "tuition_amount",
+        "fee_waiver",
+        "commission_rate",
+        "commission_amount",
+        "commission_note",
+        "payment_schedule",
+        "financial_plan",
+        "installments",
+      ];
+      const updates = [];
+      const values = [];
+      for (const field of allowedFields) {
+        if (Object.prototype.hasOwnProperty.call(body, field)) {
+          updates.push(`${field} = ?`);
+          values.push(body[field]);
+        }
+      }
+      if (!updates.length) {
+        return sendJson(res, 400, { error: "Không có trường hợp lệ để cập nhật" });
+      }
+
+      const nextStatus = Object.prototype.hasOwnProperty.call(body, "status")
+        ? String(body.status || "").trim()
+        : existing.status;
+      const incomingCommissionAmount =
+        Object.prototype.hasOwnProperty.call(body, "commission_amount") &&
+        body.commission_amount !== null &&
+        body.commission_amount !== "";
+      const shouldAutoComputeCommission =
+        nextStatus === "enrolled" &&
+        !incomingCommissionAmount &&
+        (existing.commission_amount === null || existing.commission_amount === undefined);
+      if (shouldAutoComputeCommission) {
+        const tuitionRaw = Object.prototype.hasOwnProperty.call(body, "tuition_amount")
+          ? body.tuition_amount
+          : existing.tuition_amount;
+        const rateRaw = Object.prototype.hasOwnProperty.call(body, "commission_rate")
+          ? body.commission_rate
+          : existing.commission_rate;
+        const tuition = Number(tuitionRaw);
+        const rate = Number(rateRaw);
+        if (Number.isFinite(tuition) && Number.isFinite(rate)) {
+          updates.push("commission_amount = ?");
+          values.push(Math.round(tuition * rate));
+        }
+      }
+
+      values.push(refereeId);
+      db.prepare(`UPDATE referees SET ${updates.join(", ")} WHERE id = ?`).run(...values);
+      const updated = db
+        .prepare("SELECT * FROM referees WHERE id = ? LIMIT 1")
+        .get(refereeId);
+
+      if (existing.status !== "enrolled" && updated.status === "enrolled") {
+        const referrer = db
+          .prepare("SELECT * FROM referrers WHERE referral_code = ? LIMIT 1")
+          .get(updated.referrer_code);
+        if (referrer) {
+          sendCommissionEmail(updated, referrer);
+        }
+      }
+
+      return sendJson(res, 200, updated);
     }
 
     if (usePostgresStore) {
@@ -965,39 +1480,8 @@ async function handleRequest(req, res) {
     return serveStaticFile(res, path.join(ROOT, "payment.html"));
   }
 
-  const digitalPageMap = {
-    "/san-pham/linkedin-easy-posting-machine": "index.html",
-    "/san-pham/linkedin-easy-posting-machine/": "index.html",
-    "/san-pham/linkedin-easy-posting-machine/checkout": "checkout.html",
-    "/san-pham/linkedin-easy-posting-machine/checkout/": "checkout.html",
-    "/san-pham/linkedin-easy-posting-machine/cam-on": "cam-on.html",
-    "/san-pham/linkedin-easy-posting-machine/cam-on/": "cam-on.html",
-  };
-  const digitalPage = digitalPageMap[url.pathname];
-  if (digitalPage) {
-    const resolved = resolveDigitalProductPath(digitalPage);
-    if (resolved) {
-      return serveStaticFile(res, resolved);
-    }
-    console.error(
-      "[digital] missing file",
-      digitalPage,
-      "ROOT=",
-      ROOT,
-      "uid=",
-      process.getuid?.()
-    );
-    return sendJson(res, 404, { error: "File not found" });
-  }
-  if (url.pathname.startsWith("/san-pham/linkedin-easy-posting-machine/")) {
-    const assetRel = url.pathname.replace(
-      "/san-pham/linkedin-easy-posting-machine/",
-      ""
-    );
-    const assetPath = resolveDigitalProductAsset(assetRel);
-    if (assetPath) {
-      return serveStaticFile(res, assetPath);
-    }
+  if (url.pathname.startsWith("/san-pham/linkedin-easy-posting-machine")) {
+    return sendJson(res, 410, { error: "Digital product page has been removed." });
   }
 
   if (url.pathname === "/" || url.pathname === "/index.html") {
@@ -1009,6 +1493,23 @@ async function handleRequest(req, res) {
     url.pathname === "/chuong-trinh.html"
   ) {
     return serveStaticFile(res, path.join(PUBLIC_DIR, "chuong-trinh.html"));
+  }
+
+  if (
+    url.pathname === "/gioi-thieu-ban-be.html" ||
+    url.pathname === "/gioi-thieu-ban-be/"
+  ) {
+    res.writeHead(301, { Location: "/gioi-thieu-ban-be" });
+    res.end();
+    return;
+  }
+
+  if (url.pathname === "/gioi-thieu-ban-be") {
+    const referralPage = path.join(PUBLIC_DIR, "gioi-thieu-ban-be.html");
+    if (!fs.existsSync(referralPage)) {
+      return sendJson(res, 404, { error: "Not found" });
+    }
+    return serveStaticFile(res, referralPage);
   }
 
   if (tryServePublicStatic(res, url.pathname)) {
