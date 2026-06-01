@@ -9,8 +9,7 @@ const path = require("node:path");
 const { DatabaseSync } = require("node:sqlite");
 
 const ROOT = path.join(__dirname, "..");
-const SOURCE_DB_PATH = path.join(ROOT, "brain.db");
-const DB_PATH = process.env.VERCEL ? "/tmp/brain.db" : SOURCE_DB_PATH;
+const DB_PATH = path.join(ROOT, "brain.db");
 const PROGRAMS_JSON = path.join(__dirname, "programs_final.json");
 
 const db = new DatabaseSync(DB_PATH);

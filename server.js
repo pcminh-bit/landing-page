@@ -56,28 +56,11 @@ const {
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
-const SOURCE_DB_PATH = path.join(ROOT, "brain.db");
-const DB_PATH = process.env.VERCEL ? "/tmp/brain.db" : SOURCE_DB_PATH;
+const DB_PATH = path.join(ROOT, "brain.db");
 const CURSOR_ASSETS_DIR =
   "C:/Users/ASUS/.cursor/projects/g-My-Drive-AI-Challenge-Day-2-landing-page/assets";
 
-if (process.env.VERCEL) {
-  try {
-    if (!fs.existsSync(DB_PATH) && fs.existsSync(SOURCE_DB_PATH)) {
-      fs.copyFileSync(SOURCE_DB_PATH, DB_PATH);
-    }
-  } catch (error) {
-    console.error("Can not initialize writable DB on Vercel:", error.message);
-  }
-}
-
 const db = new DatabaseSync(DB_PATH);
-
-if (process.env.VERCEL && !process.env.DATABASE_URL) {
-  console.warn(
-    "[landing] DATABASE_URL is not set on Vercel. SQLite in /tmp will not be shared between serverless instances. Add a Neon Postgres DATABASE_URL for consistent admin + webhook data."
-  );
-}
 
 db.exec(`
 PRAGMA foreign_keys = ON;
@@ -751,7 +734,6 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, {
         buildId: SERVER_BUILD_ID,
         postgres: Boolean(process.env.DATABASE_URL),
-        vercel: Boolean(process.env.VERCEL),
       });
     }
 
@@ -1529,20 +1511,16 @@ async function handleRequest(req, res) {
   return sendJson(res, 404, { error: "Not found" });
 }
 
-module.exports = handleRequest;
-
-if (!process.env.VERCEL) {
-  const server = http.createServer((req, res) => {
-    Promise.resolve(handleRequest(req, res)).catch((err) => {
-      console.error(err);
-      if (res.headersSent) return;
-      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ error: err.message || "Internal server error" }));
-    });
+const server = http.createServer((req, res) => {
+  Promise.resolve(handleRequest(req, res)).catch((err) => {
+    console.error(err);
+    if (res.headersSent) return;
+    res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ error: err.message || "Internal server error" }));
   });
+});
 
-  server.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-    console.log(`Admin panel: http://localhost:${PORT}/admin`);
-  });
-}
+server.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Admin panel: http://localhost:${PORT}/admin`);
+});

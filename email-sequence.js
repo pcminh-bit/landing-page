@@ -172,7 +172,6 @@ async function runWaitlistSignupSequence(lead, storage = {}) {
     emailValid: isLikelyEmail(email),
     nameLen: name.length,
     plusTestLocal: email ? isSequenceTestEmail(email) : false,
-    VERCEL: Boolean(process.env.VERCEL),
     hasDATABASE_URL: Boolean(process.env.DATABASE_URL),
   });
 
@@ -197,7 +196,7 @@ async function runWaitlistSignupSequence(lead, storage = {}) {
 
   if (!apiKey || !from) {
     console.warn(
-      "[email-sequence] STOP — không gửi được: thiếu RESEND_API_KEY (env không có và/hoặc file không có key) HOẶC thiếu RESEND_FROM_EMAIL. Trên Vercel: Dashboard → Env → RESEND_API_KEY + RESEND_FROM_EMAIL."
+      "[email-sequence] STOP — không gửi được: thiếu RESEND_API_KEY (env không có và/hoặc file không có key) HOẶC thiếu RESEND_FROM_EMAIL. Set RESEND_API_KEY và RESEND_FROM_EMAIL trong .env.production trên server."
     );
     return;
   }

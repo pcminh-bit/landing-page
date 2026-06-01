@@ -1,5 +1,5 @@
 /**
- * Copy static assets repo root → public/ for Vercel filesystem routing.
+ * Copy admin static assets from repo root → public/ for production serving.
  * Run: npm run build
  */
 const fs = require("node:fs");

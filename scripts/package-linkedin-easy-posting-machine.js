@@ -42,4 +42,4 @@ const stat = fs.statSync(zipPath);
 console.log("\n✓ Đã tạo:", zipPath);
 console.log("✓ Copy:", publicZip);
 console.log("  Kích thước:", (stat.size / 1024).toFixed(1), "KB");
-console.log("\nDeploy lên Vercel/VPS kèm dist/ hoặc public/downloads/ để API tải file hoạt động.");
+console.log("\nDeploy lên VPS kèm dist/ hoặc public/downloads/ để API tải file hoạt động.");

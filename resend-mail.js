@@ -50,7 +50,7 @@ function describeApiKeyResolution() {
       source: "none",
       fileExists: false,
       detail:
-        "Không có RESEND_API_KEY trong env và không tìm thấy resend_config.txt — trên Vercel cần set env RESEND_API_KEY.",
+        "Không có RESEND_API_KEY trong env và không tìm thấy resend_config.txt — set RESEND_API_KEY trong .env hoặc .env.production.",
     };
   }
 
@@ -205,7 +205,7 @@ function logResendFromStatus(context = "load") {
   return meta;
 }
 
-/** 5 ký tự đầu — đủ nhận biết env có inject trên Vercel hay không (không log full key). */
+/** 5 ký tự đầu — đủ nhận biết env có inject hay không (không log full key). */
 function envResendKeyPrefix5() {
   const v = process.env.RESEND_API_KEY;
   if (v == null || String(v).trim() === "") return "(unset)";
@@ -242,7 +242,6 @@ async function sendResendEmail(apiKey, payload) {
   console.log("[resend:send:env-check]", {
     process_env_RESEND_API_KEY_first5: envP,
     bearer_apiKey_first5: bearerP,
-    VERCEL: process.env.VERCEL === "1",
     channel: "rest-fetch",
     endpoint: RESEND_API_URL,
   });
