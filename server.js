@@ -76,6 +76,8 @@ const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_FAILED_ATTEMPTS = 5;
 const sessions = new Map();
 const loginAttemptsByIp = new Map();
+const publicFormStore = {};
+const apiStore = {};
 
 db.exec(`
 PRAGMA foreign_keys = ON;
@@ -192,6 +194,26 @@ function getClientIp(req) {
     return forwarded.split(",")[0].trim();
   }
   return String(req.socket?.remoteAddress || "").trim() || "unknown";
+}
+
+function getIpFromRequest(req) {
+  return (
+    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+    req.socket.remoteAddress
+  );
+}
+
+function rateLimit(store, key, maxRequests, windowMs) {
+  const now = Date.now();
+  const safeKey = String(key || "unknown");
+  if (!store[safeKey] || now > store[safeKey].resetAt) {
+    store[safeKey] = { count: 0, resetAt: now + windowMs };
+  }
+  store[safeKey].count += 1;
+  if (store[safeKey].count > maxRequests) {
+    return false;
+  }
+  return true;
 }
 
 function clearExpiredSessions() {
@@ -926,6 +948,10 @@ async function handleApi(req, res, url) {
     `;
 
     if (req.method === "GET" && url.pathname === "/api/programs") {
+      const ip = getIpFromRequest(req);
+      if (!rateLimit(apiStore, ip, 60, 60 * 60 * 1000)) {
+        return sendJson(res, 429, { error: "Rate limit exceeded" });
+      }
       const category = url.searchParams.get("category");
       const rows = category
         ? db
@@ -961,6 +987,10 @@ async function handleApi(req, res, url) {
     }
 
     if (req.method === "POST" && url.pathname === "/api/referrers") {
+      const ip = getIpFromRequest(req);
+      if (!rateLimit(publicFormStore, ip, 3, 60 * 60 * 1000)) {
+        return sendJson(res, 429, { error: "Quá nhiều yêu cầu. Vui lòng thử lại sau." });
+      }
       const body = await readJsonBody(req);
       const name = String(body.name || "").trim();
       const email = String(body.email || "").trim();
@@ -1273,6 +1303,10 @@ async function handleApi(req, res, url) {
     }
 
     if (req.method === "POST" && url.pathname === "/api/customers") {
+      const ip = getIpFromRequest(req);
+      if (!rateLimit(publicFormStore, ip, 5, 60 * 60 * 1000)) {
+        return sendJson(res, 429, { error: "Quá nhiều yêu cầu. Vui lòng thử lại sau." });
+      }
       const body = await readJsonBody(req);
       if (!body.name) {
         return sendJson(res, 400, { error: "name là bắt buộc" });
