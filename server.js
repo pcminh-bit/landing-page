@@ -2,6 +2,7 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { URL } = require("node:url");
+const crypto = require("node:crypto");
 const { DatabaseSync } = require("node:sqlite");
 
 function loadEnvFile(envPath) {
@@ -61,6 +62,20 @@ const CURSOR_ASSETS_DIR =
   "C:/Users/ASUS/.cursor/projects/g-My-Drive-AI-Challenge-Day-2-landing-page/assets";
 
 const db = new DatabaseSync(DB_PATH);
+
+const SESSION_SECRET = String(process.env.SESSION_SECRET || "").trim();
+if (!SESSION_SECRET) {
+  throw new Error("SESSION_SECRET is required. Please set SESSION_SECRET in environment.");
+}
+
+const ADMIN_USERNAME = String(process.env.ADMIN_USERNAME || "");
+const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "");
+const SESSION_COOKIE_NAME = "admin_session";
+const SESSION_MAX_AGE_MS = 8 * 60 * 60 * 1000;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_FAILED_ATTEMPTS = 5;
+const sessions = new Map();
+const loginAttemptsByIp = new Map();
 
 db.exec(`
 PRAGMA foreign_keys = ON;
@@ -155,6 +170,130 @@ const MIME_TYPES = {
 function sendJson(res, status, payload) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
+}
+
+function parseCookies(req) {
+  const cookieHeader = String(req.headers.cookie || "");
+  const pairs = cookieHeader.split(";").map((part) => part.trim()).filter(Boolean);
+  const cookies = {};
+  for (const pair of pairs) {
+    const idx = pair.indexOf("=");
+    if (idx <= 0) continue;
+    const key = decodeURIComponent(pair.slice(0, idx).trim());
+    const value = decodeURIComponent(pair.slice(idx + 1).trim());
+    cookies[key] = value;
+  }
+  return cookies;
+}
+
+function getClientIp(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "").trim();
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  return String(req.socket?.remoteAddress || "").trim() || "unknown";
+}
+
+function clearExpiredSessions() {
+  const now = Date.now();
+  for (const [sessionId, session] of sessions.entries()) {
+    if (!session || session.expiresAt <= now) {
+      sessions.delete(sessionId);
+    }
+  }
+}
+
+function createSession(username) {
+  clearExpiredSessions();
+  const now = Date.now();
+  const sessionId = crypto
+    .createHmac("sha256", SESSION_SECRET)
+    .update(`${crypto.randomUUID()}-${now}`)
+    .digest("hex");
+  const session = {
+    id: sessionId,
+    username,
+    expiresAt: now + SESSION_MAX_AGE_MS,
+  };
+  sessions.set(sessionId, session);
+  return session;
+}
+
+function setSessionCookie(res, sessionId) {
+  const maxAgeSeconds = Math.floor(SESSION_MAX_AGE_MS / 1000);
+  res.setHeader(
+    "Set-Cookie",
+    `${SESSION_COOKIE_NAME}=${encodeURIComponent(
+      sessionId
+    )}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSeconds}`
+  );
+}
+
+function clearSessionCookie(res) {
+  res.setHeader(
+    "Set-Cookie",
+    `${SESSION_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`
+  );
+}
+
+function getValidSession(req) {
+  clearExpiredSessions();
+  const cookies = parseCookies(req);
+  const sessionId = cookies[SESSION_COOKIE_NAME];
+  if (!sessionId) return null;
+  const session = sessions.get(sessionId);
+  if (!session) return null;
+  if (session.expiresAt <= Date.now()) {
+    sessions.delete(sessionId);
+    return null;
+  }
+  return session;
+}
+
+function requireAuth(req, res) {
+  const session = getValidSession(req);
+  if (!session) {
+    res.writeHead(302, { Location: "/login" });
+    res.end();
+    return false;
+  }
+  return true;
+}
+
+function shouldProtectApiRoute(req, pathname) {
+  if (pathname.startsWith("/api/auth/")) return false;
+  if (req.method === "POST" && pathname === "/api/customers") return false;
+  if (req.method === "POST" && pathname === "/api/referrers") return false;
+  if (req.method === "GET" && pathname === "/api/programs") return false;
+  if (/^\/api\/programs\/[^/]+\/?$/.test(pathname) && req.method === "GET") return false;
+
+  if (pathname.startsWith("/api/referrers")) return true;
+  if (pathname.startsWith("/api/referees")) return true;
+  if (pathname.startsWith("/api/orders")) return true;
+  if (pathname.startsWith("/api/customers") && req.method === "GET") return true;
+  return false;
+}
+
+function tooManyFailedLoginAttempts(ip) {
+  const now = Date.now();
+  const attempts = (loginAttemptsByIp.get(ip) || []).filter(
+    (timestamp) => now - timestamp <= LOGIN_WINDOW_MS
+  );
+  loginAttemptsByIp.set(ip, attempts);
+  return attempts.length >= LOGIN_MAX_FAILED_ATTEMPTS;
+}
+
+function recordFailedLoginAttempt(ip) {
+  const now = Date.now();
+  const attempts = (loginAttemptsByIp.get(ip) || []).filter(
+    (timestamp) => now - timestamp <= LOGIN_WINDOW_MS
+  );
+  attempts.push(now);
+  loginAttemptsByIp.set(ip, attempts);
+}
+
+function clearFailedLoginAttempts(ip) {
+  loginAttemptsByIp.delete(ip);
 }
 
 function readRawBody(req) {
@@ -704,6 +843,43 @@ async function sendCommissionEmail(referee, referrer) {
 
 async function handleApi(req, res, url) {
   try {
+    if (req.method === "POST" && url.pathname === "/api/auth/login") {
+      const ip = getClientIp(req);
+      if (tooManyFailedLoginAttempts(ip)) {
+        return sendJson(res, 429, { error: "Too many login attempts. Please try again later." });
+      }
+      const body = await readJsonBody(req);
+      const username = String(body.username || "");
+      const password = String(body.password || "");
+      if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+        recordFailedLoginAttempt(ip);
+        return sendJson(res, 401, { error: "Sai tên đăng nhập hoặc mật khẩu" });
+      }
+      clearFailedLoginAttempts(ip);
+      const session = createSession(username);
+      setSessionCookie(res, session.id);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/auth/logout") {
+      const currentSession = getValidSession(req);
+      if (currentSession?.id) {
+        sessions.delete(currentSession.id);
+      }
+      clearSessionCookie(res);
+      res.writeHead(302, { Location: "/login" });
+      res.end();
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/auth/check") {
+      const session = getValidSession(req);
+      if (!session) {
+        return sendJson(res, 401, { ok: false });
+      }
+      return sendJson(res, 200, { ok: true });
+    }
+
     if (
       url.pathname === "/api/digital-health" ||
       url.pathname === "/api/digital-payment-orders" ||
@@ -1453,7 +1629,18 @@ function parseRequestUrl(req) {
 async function handleRequest(req, res) {
   const url = parseRequestUrl(req);
 
+  if (url.pathname === "/login" || url.pathname === "/login.html") {
+    return serveStaticFile(res, path.join(PUBLIC_DIR, "login.html"));
+  }
+
+  if (url.pathname === "/admin" && !requireAuth(req, res)) {
+    return;
+  }
+
   if (url.pathname.startsWith("/api/")) {
+    if (shouldProtectApiRoute(req, url.pathname) && !requireAuth(req, res)) {
+      return;
+    }
     return await handleApi(req, res, url);
   }
 

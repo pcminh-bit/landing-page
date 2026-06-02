@@ -738,6 +738,20 @@
     );
   });
 
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+      } finally {
+        window.location.href = "/login";
+      }
+    });
+  }
+
   Promise.all([loadReferrers(), loadReferees()]).catch((error) => {
     alert(`Khong tai duoc du lieu: ${error.message}`);
   });
