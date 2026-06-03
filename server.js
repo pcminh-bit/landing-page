@@ -153,6 +153,12 @@ try {
 try {
   db.exec("ALTER TABLE referees ADD COLUMN installments TEXT");
 } catch (e) {}
+try {
+  db.exec("ALTER TABLE customers ADD COLUMN program TEXT");
+} catch (e) {}
+try {
+  db.exec("ALTER TABLE customers ADD COLUMN source TEXT");
+} catch (e) {}
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -1354,19 +1360,25 @@ async function handleApi(req, res, url) {
       if (!body.name) {
         return sendJson(res, 400, { error: "name là bắt buộc" });
       }
+      const program = body.program || body.program_interest || "";
+      const source = body.source || "";
       const lead = {
         name: body.name.trim(),
         email: String(body.email || "").trim(),
         phone: body.phone || "",
         zalo: body.zalo || "",
+        program,
+        source,
       };
       db.prepare(
-        "INSERT INTO customers(name, phone, email, zalo, registered_at) VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')))"
+        "INSERT INTO customers(name, phone, email, zalo, program, source, registered_at) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, datetime('now')))"
       ).run(
         lead.name,
         lead.phone,
         lead.email,
         lead.zalo,
+        lead.program,
+        lead.source,
         body.registered_at || null
       );
       const registeredAt = body.registered_at || new Date().toISOString();
@@ -1376,6 +1388,8 @@ async function handleApi(req, res, url) {
         lead.email,
         lead.phone,
         lead.zalo,
+        program,
+        source,
       ]);
       const emailTasks = await Promise.allSettled([
         notifyWaitlistSignup(lead),

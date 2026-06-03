@@ -61,7 +61,6 @@
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/navbar.css">
   <link rel="stylesheet" href="/css/homepage.css">
-  <script src="https://js.hsforms.net/forms/embed/20918102.js" defer></script>
 </head>
 <body>
 
@@ -138,7 +137,21 @@
 
           <div class="hero-form-col">
             <div class="hero-form-box">
-              <div class="hs-form-frame" data-region="na1" data-form-id="ceed26f1-14c4-488a-8b6c-3a5d44b8f1b3" data-portal-id="20918102"></div>
+              <form id="heroForm" class="hero-form">
+                <div class="hero-form-row">
+                  <div class="form-group">
+                    <input type="text" id="heroName" name="name" class="form-input" placeholder="Họ và tên *" required>
+                  </div>
+                  <div class="form-group">
+                    <input type="tel" id="heroPhone" name="phone" class="form-input" placeholder="Số điện thoại *" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <input type="email" id="heroEmail" name="email" class="form-input" placeholder="Email *" required>
+                </div>
+                <button type="submit" class="btn btn-primary hero-submit" id="heroSubmitBtn">Nhận học bổng tốt nhất →</button>
+              </form>
+              <div id="heroFormMsg" style="display:none;"></div>
             </div>
           </div>
         </div>
@@ -398,7 +411,31 @@
             </div>
           </div>
           <div class="consultation-form-wrap">
-            <div class="hs-form-frame" data-region="na1" data-form-id="b45e9b5a-7e6d-48fe-babf-2d2fbdb97d7f" data-portal-id="20918102"></div>
+            <form id="consultForm">
+              <div class="form-group">
+                <input type="text" id="consultName" class="form-input" placeholder="Họ và tên *" required>
+              </div>
+              <div class="form-group">
+                <input type="tel" id="consultPhone" class="form-input" placeholder="Số điện thoại *" required>
+              </div>
+              <div class="form-group">
+                <input type="email" id="consultEmail" class="form-input" placeholder="Email *" required>
+              </div>
+              <div class="form-group">
+                <select id="consultProgram" class="form-input">
+                  <option value="">Chương trình quan tâm (tùy chọn)</option>
+                  <option value="MBA">MBA — Thạc sĩ Quản trị Kinh doanh</option>
+                  <option value="DBA">DBA — Tiến sĩ Quản trị Kinh doanh</option>
+                  <option value="MEd">M.Ed — Thạc sĩ Quản lý Giáo dục</option>
+                  <option value="EdD">Ed.D — Tiến sĩ Giáo dục</option>
+                  <option value="MA IOP">MA IOP — Thạc sĩ Tâm lý học Tổ chức</option>
+                  <option value="Data Science">M.Sc Data Science</option>
+                  <option value="ML AI">M.Sc Machine Learning & AI</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary" id="consultSubmitBtn" style="width:100%;padding:14px;">Nhận học bổng tốt nhất →</button>
+            </form>
+            <div id="consultFormMsg" style="display:none;"></div>
           </div>
         </div>
       </div>
@@ -441,5 +478,6 @@
   <script src="/js/award-gallery.js" defer></script>
   <script src="/js/programs.js" defer></script>
   <script src="/js/faq.js" defer></script>
+  <script src="/js/forms.js" defer></script>
 </body>
 </html>
