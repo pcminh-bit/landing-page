@@ -1381,15 +1381,13 @@ async function handleApi(req, res, url) {
         lead.source,
         body.registered_at || null
       );
-      const registeredAt = body.registered_at || new Date().toISOString();
       await appendToSheet("Customers", [
-        registeredAt,
-        lead.name,
-        lead.email,
-        lead.phone,
-        lead.zalo,
-        program,
-        source,
+        new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }),
+        body.name || "",
+        body.email || "",
+        body.phone || "",
+        program || "",
+        source || "",
       ]);
       const emailTasks = await Promise.allSettled([
         notifyWaitlistSignup(lead),
