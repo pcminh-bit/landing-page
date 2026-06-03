@@ -320,6 +320,7 @@
               <button class="action ${String(item.status || "active") === "active" ? "danger" : "ok"}" data-toggle-referrer="${escapeHtml(item.referral_code)}" data-current-status="${escapeHtml(item.status || "active")}">
                 ${String(item.status || "active") === "active" ? "Đổi inactive" : "Đổi active"}
               </button>
+              <button type="button" class="action" data-delete-referrer="${escapeHtml(item.referral_code)}" style="background:#dc2626;color:white;border-radius:4px;padding:6px 12px;font-size:13px;">Xóa</button>
             </div>
           </td>
         </tr>`
@@ -349,6 +350,9 @@
           alert(error.message)
         )
       );
+    });
+    wrap.querySelectorAll("[data-delete-referrer]").forEach((btn) => {
+      btn.addEventListener("click", () => deleteReferrer(btn.dataset.deleteReferrer));
     });
   }
 
@@ -532,6 +536,17 @@
       body: JSON.stringify({ status: nextStatus }),
     });
     await loadReferrers();
+  }
+
+  async function deleteReferrer(code) {
+    const confirmed = confirm("Xóa referrer này? Hành động không thể hoàn tác.");
+    if (!confirmed) return;
+    try {
+      await api(`/api/referrers/${encodeURIComponent(code)}`, { method: "DELETE" });
+      await loadReferrers();
+    } catch (error) {
+      alert(error.message);
+    }
   }
 
   async function updateReferee(id, data) {

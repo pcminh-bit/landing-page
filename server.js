@@ -673,7 +673,7 @@ async function sendReferrerWelcomeEmail(referrer) {
       Hoa hồng sẽ được xác nhận bằng email sau khi học viên hoàn tất thủ tục nhập học. Mức hoa hồng cụ thể phụ thuộc vào học phí thực thu của từng học viên.
     </div>
 
-    <p style="margin:0 0 12px;line-height:1.6;">Nếu có câu hỏi: 📱 Zalo <strong>0917 500 437</strong> &nbsp;|&nbsp; 📧 <strong>tuananh@hocbong-upgrad.com</strong></p>
+    <p style="margin:0 0 12px;line-height:1.6;">Nếu có câu hỏi: 📱 Zalo <strong>0917 500 437</strong> &nbsp;|&nbsp; 📧 <strong>doitactuyensinh.tuananh@upgrad.com</strong></p>
 
     <div style="margin-top:20px;font-size:14px;line-height:1.8;">
       Trân trọng,<br>
@@ -846,7 +846,7 @@ async function sendCommissionEmail(referee, referrer) {
     </div>
 
     <p style="margin:0 0 12px;line-height:1.6;">Phương thức thanh toán: <strong>Chuyển khoản trực tiếp</strong> vào tài khoản của bạn.</p>
-    <p style="margin:0 0 12px;line-height:1.6;">📱 Zalo: <strong>0917 500 437</strong> &nbsp;|&nbsp; 📧 <strong>tuananh@hocbong-upgrad.com</strong></p>
+    <p style="margin:0 0 12px;line-height:1.6;">📱 Zalo: <strong>0917 500 437</strong> &nbsp;|&nbsp; 📧 <strong>doitactuyensinh.tuananh@upgrad.com</strong></p>
 
     <div style="margin-top:20px;font-size:14px;line-height:1.8;">
       Trân trọng,<br>
@@ -1099,6 +1099,28 @@ async function handleApi(req, res, url) {
         .prepare("SELECT * FROM referrers WHERE referral_code = ? LIMIT 1")
         .get(code);
       return sendJson(res, 200, updated);
+    }
+
+    if (req.method === "DELETE" && referrerByCodeMatch) {
+      const code = decodeURIComponent(referrerByCodeMatch[1]);
+      const referrer = db
+        .prepare("SELECT * FROM referrers WHERE referral_code = ? LIMIT 1")
+        .get(code);
+      if (!referrer) {
+        return sendJson(res, 404, { error: "Not found" });
+      }
+      const refereeCount = Number(
+        db
+          .prepare("SELECT COUNT(*) AS c FROM referees WHERE referrer_code = ?")
+          .get(code)?.c || 0
+      );
+      if (refereeCount > 0) {
+        return sendJson(res, 400, {
+          error: "Không thể xóa referrer đang có referee. Xóa referee trước.",
+        });
+      }
+      db.prepare("DELETE FROM referrers WHERE referral_code = ?").run(code);
+      return sendJson(res, 200, { ok: true });
     }
 
     if (req.method === "POST" && url.pathname === "/api/referees") {
