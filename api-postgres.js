@@ -11,6 +11,7 @@ const {
   sendOrderCreatedConfirmation,
   sendDigitalProductDelivery,
 } = require("./resend-mail");
+const { appendToSheet } = require("./utils/google-sheets");
 const { getDigitalProduct } = require("./digital-products");
 const {
   generateDownloadToken,
@@ -261,6 +262,7 @@ async function handleApiPostgres(req, res, url, deps) {
         phone: body.phone || "",
         zalo: body.zalo || "",
       };
+      const registeredAt = body.registered_at || nowSqliteStyle();
       await mutate((snap) => {
         const id = nextId(snap.customers);
         snap.customers.push({
@@ -269,10 +271,17 @@ async function handleApiPostgres(req, res, url, deps) {
           phone: lead.phone,
           email: lead.email,
           zalo: lead.zalo,
-          registered_at: body.registered_at || nowSqliteStyle(),
+          registered_at: registeredAt,
           goclaw_signal_02_notified: 0,
         });
       });
+      await appendToSheet("Customers", [
+        registeredAt,
+        lead.name,
+        lead.email,
+        lead.phone,
+        lead.zalo,
+      ]);
       const emailTasks = await Promise.allSettled([
         notifyWaitlistSignup(lead),
         runWaitlistSignupSequence(lead, { postgresMutate: mutate }),

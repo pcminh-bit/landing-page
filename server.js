@@ -26,6 +26,7 @@ loadEnvFile(path.join(__dirname, ".env.production"));
 
 const { usePostgresStore } = require("./pg-store");
 const { handleApiPostgres } = require("./api-postgres");
+const { appendToSheet } = require("./utils/google-sheets");
 const {
   notifyWaitlistSignup,
   sendOrderCreatedConfirmation,
@@ -1029,6 +1030,17 @@ async function handleApi(req, res, url) {
       const referrer = db
         .prepare("SELECT * FROM referrers WHERE id = ? LIMIT 1")
         .get(Number(result.lastInsertRowid));
+      await appendToSheet("Referrers", [
+        new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }),
+        body.name || "",
+        body.email || "",
+        body.phone || "",
+        referralCode,
+        body.bank_name || "",
+        body.bank_account || "",
+        body.bank_holder || "",
+        body.notes || "",
+      ]);
       sendReferrerWelcomeEmail(referrer);
       return sendJson(res, 201, referrer);
     }
@@ -1167,6 +1179,15 @@ async function handleApi(req, res, url) {
       const referee = db
         .prepare("SELECT * FROM referees WHERE id = ? LIMIT 1")
         .get(Number(result.lastInsertRowid));
+      await appendToSheet("Referees", [
+        new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }),
+        body.referrer_code || "",
+        body.name || "",
+        body.email || "",
+        body.phone || "",
+        body.enrolled_program || body.program_interest || "",
+        "pending",
+      ]);
       sendRefereeConfirmationEmail(referee, referrer);
       return sendJson(res, 201, referee);
     }
@@ -1348,6 +1369,14 @@ async function handleApi(req, res, url) {
         lead.zalo,
         body.registered_at || null
       );
+      const registeredAt = body.registered_at || new Date().toISOString();
+      await appendToSheet("Customers", [
+        registeredAt,
+        lead.name,
+        lead.email,
+        lead.phone,
+        lead.zalo,
+      ]);
       const emailTasks = await Promise.allSettled([
         notifyWaitlistSignup(lead),
         runWaitlistSignupSequence(lead, { sqlite: db }),

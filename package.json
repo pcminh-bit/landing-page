@@ -12,6 +12,7 @@
     "mcp": "node mcp/server.js"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^0.10.4"
+    "@neondatabase/serverless": "^0.10.4",
+    "googleapis": "^144.0.0"
   }
 }
