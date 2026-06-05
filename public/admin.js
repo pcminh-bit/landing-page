@@ -366,6 +366,16 @@
     }
   }
 
+  function programDisplayName(slugOrName) {
+    const raw = String(slugOrName || "").trim();
+    if (!raw) return "";
+    const program = state.programs.find((p) => p.program_slug === raw);
+    if (!program) return raw;
+    const title = program.program_title || raw;
+    const uni = program.university_name || "";
+    return uni ? `${title} — ${uni}` : title;
+  }
+
   function planLabel(item) {
     const plan = String(item.financial_plan || "full");
     const list = parseInstallments(item.installments);
@@ -391,7 +401,7 @@
           <td>${escapeHtml(item.name)}</td>
           <td>${escapeHtml(item.phone || "")}</td>
           <td>${escapeHtml(item.email || "")}</td>
-          <td>${escapeHtml(item.enrolled_program || "")}</td>
+          <td>${escapeHtml(programDisplayName(item.enrolled_program || item.program_interest))}</td>
           <td>${formatVND(Number(item.tuition_amount || 0) - Number(item.fee_waiver || 0))}</td>
           <td>${planLabel(item)}</td>
           <td>${formatVND(item.commission_amount || 0)}</td>
@@ -401,6 +411,7 @@
             <div class="actions">
               <button class="action" data-details-referee="${item.id}">Chi tiết</button>
               <button class="action" data-edit-referee="${item.id}">Cập nhật</button>
+              <button type="button" class="action" data-delete-referee="${item.id}" style="background:#dc2626;color:white;border-radius:4px;padding:6px 12px;font-size:13px;">Xóa</button>
             </div>
           </td>
         </tr>
@@ -465,6 +476,9 @@
         if (!row) return;
         row.style.display = row.style.display === "none" ? "table-row" : "none";
       });
+    });
+    wrap.querySelectorAll("[data-delete-referee]").forEach((btn) => {
+      btn.addEventListener("click", () => deleteReferee(Number(btn.dataset.deleteReferee)));
     });
     wrap.querySelectorAll("[data-referee-form]").forEach((form) => {
       form.addEventListener("submit", (event) => {
@@ -555,6 +569,18 @@
       body: JSON.stringify(data),
     });
     await loadReferees(state.activeReferrerCode);
+  }
+
+  async function deleteReferee(id) {
+    const confirmed = confirm("Xóa referee này? Hành động không thể hoàn tác.");
+    if (!confirmed) return;
+    try {
+      await api(`/api/referees/${id}`, { method: "DELETE" });
+      await loadReferees(state.activeReferrerCode);
+      await loadReferrers();
+    } catch (error) {
+      alert(error.message);
+    }
   }
 
   function renderInstallmentsDetail(item) {
@@ -753,14 +779,21 @@
     );
   });
 
-  document.getElementById("logoutBtn").addEventListener("click", async function() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch(e) {}
-    window.location.href = "/login";
-  });
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+      } finally {
+        window.location.href = "/login";
+      }
+    });
+  }
 
-  Promise.all([loadReferrers(), loadReferees()]).catch((error) => {
+  Promise.all([loadReferrers(), loadReferees(), loadPrograms()]).catch((error) => {
     alert(`Khong tai duoc du lieu: ${error.message}`);
   });
 })();

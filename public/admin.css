@@ -19,6 +19,26 @@ h1 {
   margin: 0 0 6px;
 }
 
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.admin-topbar h1 {
+  margin: 0;
+}
+
+.logout-btn {
+  background: #b91c1c;
+}
+
+.logout-btn:hover {
+  background: #991b1b;
+}
+
 .subtitle {
   margin: 0 0 18px;
   color: #4b5563;

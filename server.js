@@ -638,6 +638,26 @@ const emailFooter = `
 const REFERRAL_MAIL_FROM =
   "Trần Tuấn Anh — Đại lý Tuyển sinh Chiến lược - upGrad Việt Nam <tuananh@hocbong-upgrad.com>";
 
+function resolveProgramDisplayName(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "—";
+  try {
+    const row = db
+      .prepare(
+        "SELECT program_title, university_name FROM programs WHERE program_slug = ? LIMIT 1"
+      )
+      .get(raw);
+    if (row) {
+      const title = String(row.program_title || raw).trim();
+      const uni = String(row.university_name || "").trim();
+      return uni ? `${title} — ${uni}` : title;
+    }
+  } catch {
+    // programs table may be unavailable in some environments
+  }
+  return raw;
+}
+
 function resolveReferralMailFrom() {
   const configured = String(loadResendFromEmail() || "").trim();
   if (!configured) return REFERRAL_MAIL_FROM;
@@ -702,6 +722,9 @@ async function sendRefereeConfirmationEmail(referee, referrer) {
     if (!referrer.email) return;
     const apiKey = loadResendApiKey();
     if (!apiKey) return;
+    const programLabel = resolveProgramDisplayName(
+      referee.enrolled_program || referee.program_interest
+    );
     await sendResendEmail(apiKey, {
       from: resolveReferralMailFrom(),
       to: referrer.email,
@@ -730,7 +753,7 @@ async function sendRefereeConfirmationEmail(referee, referrer) {
       </tr>
       <tr>
         <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Chương trình quan tâm</td>
-        <td style="padding:10px 14px;border:1px solid #e9ecef;">${referee.enrolled_program || referee.program_interest || "—"}</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;">${programLabel}</td>
       </tr>
       <tr>
         <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Mã giới thiệu</td>
@@ -761,6 +784,7 @@ async function sendCommissionEmail(referee, referrer) {
     if (!referrer.email) return;
     const apiKey = loadResendApiKey();
     if (!apiKey) return;
+    const programLabel = resolveProgramDisplayName(referee.enrolled_program);
 
     const installments =
       typeof referee.installments === "string"
@@ -813,7 +837,7 @@ async function sendCommissionEmail(referee, referrer) {
       </tr>
       <tr>
         <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Chương trình</td>
-        <td style="padding:10px 14px;border:1px solid #e9ecef;">${referee.enrolled_program}</td>
+        <td style="padding:10px 14px;border:1px solid #e9ecef;">${programLabel}</td>
       </tr>
       <tr>
         <td style="padding:10px 14px;border:1px solid #e9ecef;background:#f8f9fa;font-weight:500;">Học phí</td>
@@ -1295,6 +1319,18 @@ async function handleApi(req, res, url) {
       }
 
       return sendJson(res, 200, updated);
+    }
+
+    if (req.method === "DELETE" && refereeByIdMatch) {
+      const refereeId = Number(refereeByIdMatch[1]);
+      const existing = db
+        .prepare("SELECT * FROM referees WHERE id = ? LIMIT 1")
+        .get(refereeId);
+      if (!existing) {
+        return sendJson(res, 404, { error: "Not found" });
+      }
+      db.prepare("DELETE FROM referees WHERE id = ?").run(refereeId);
+      return sendJson(res, 200, { ok: true });
     }
 
     if (usePostgresStore) {
