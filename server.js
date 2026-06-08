@@ -681,7 +681,7 @@ async function sendReferrerWelcomeEmail(referrer) {
   </div>
   <div style="padding:24px 28px;background:white;">
     <p style="margin:0 0 12px;line-height:1.6;">Xin chào <strong>${referrer.name}</strong>,</p>
-    <p style="margin:0 0 12px;line-height:1.6;">Cảm ơn bạn đã đăng ký tham gia chương trình giới thiệu học viên của upGrad Việt Nam.</p>
+    <p style="margin:0 0 12px;line-height:1.6;">Cảm ơn bạn đã đăng ký tham gia chương trình Chương trình Giới thiệu học viên — nhận liền bonus! của Trần Tuấn Anh - Đại lý Tuyển sinh Chiến lược của upGrad Việt Nam.</p>
 
     <div style="background:#f8f9fa;border-left:4px solid #E50913;padding:16px 20px;margin:16px 0;">
       <p style="margin:0 0 6px;font-size:11px;color:#6b7280;letter-spacing:0.5px;text-transform:uppercase;">Mã giới thiệu của bạn</p>
