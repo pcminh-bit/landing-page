@@ -673,6 +673,7 @@ async function sendReferrerWelcomeEmail(referrer) {
     await sendResendEmail(apiKey, {
       from: resolveReferralMailFrom(),
       to: referrer.email,
+      cc: ["minh.pham@upgrad.com", "an.le@upgrad.com"],
       subject: `Mã giới thiệu của bạn: ${referrer.referral_code}`,
       html: `
 <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;color:#404040;">
@@ -728,6 +729,7 @@ async function sendRefereeConfirmationEmail(referee, referrer) {
     await sendResendEmail(apiKey, {
       from: resolveReferralMailFrom(),
       to: referrer.email,
+      cc: ["minh.pham@upgrad.com", "an.le@upgrad.com"],
       subject: `Đã ghi nhận giới thiệu: ${referee.name}`,
       html: `
 <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;color:#404040;">
@@ -820,6 +822,7 @@ async function sendCommissionEmail(referee, referrer) {
     await sendResendEmail(apiKey, {
       from: resolveReferralMailFrom(),
       to: referrer.email,
+      cc: ["minh.pham@upgrad.com", "an.le@upgrad.com"],
       subject: `Xác nhận hoa hồng giới thiệu — ${referee.name}`,
       html: `
 <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;color:#404040;">

@@ -227,7 +227,7 @@ function formatVnd(value) {
  * Caller truyền từ `loadResendApiKey()` / `describeApiKeyResolution()`.
  *
  * @param {string} apiKey
- * @param {{ from: string; to: string | string[]; subject: string; html: string }} payload
+ * @param {{ from: string; to: string | string[]; cc?: string | string[]; subject: string; html: string }} payload
  */
 async function sendResendEmail(apiKey, payload) {
   const { _logLabel, ...resendBody } = payload;
@@ -268,6 +268,9 @@ async function sendResendEmail(apiKey, payload) {
     subject: resendBody.subject,
     html: resendBody.html,
   };
+  if (resendBody.cc) {
+    body.cc = Array.isArray(resendBody.cc) ? resendBody.cc : [resendBody.cc];
+  }
   const sender = String(body.from || "").toLowerCase().trim();
   if (sender.includes("onboarding@resend.dev")) {
     console.warn(
