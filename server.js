@@ -63,6 +63,8 @@ const CURSOR_ASSETS_DIR =
   "C:/Users/ASUS/.cursor/projects/g-My-Drive-AI-Challenge-Day-2-landing-page/assets";
 
 const db = new DatabaseSync(DB_PATH);
+const { seedPrograms } = require("./scripts/seed-programs");
+seedPrograms(db, { quiet: true });
 
 const SESSION_SECRET = String(process.env.SESSION_SECRET || "").trim();
 if (!SESSION_SECRET) {

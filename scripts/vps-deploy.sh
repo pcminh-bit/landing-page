@@ -21,6 +21,7 @@ git log -1 --oneline
 
 npm install
 npm run build
+node scripts/seed-programs.js
 
 echo "==> Restarting landing-page (kill stale node on port ${PORT:-3000})..."
 if [ -f "$APP_DIR/scripts/restart-landing-page.sh" ]; then

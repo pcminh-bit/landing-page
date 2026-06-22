@@ -15,8 +15,9 @@ Landing page + admin + API built with Node.js (`server.js`) and static HTML/CSS/
    - `cp .env.example .env`
 2. Install deps:
    - `npm install`
-3. Build admin assets:
+3. Build admin assets and sync program catalog:
    - `npm run build`
+   - `npm run seed:programs` (optional — `server.js` also syncs `programs_final.json` into `brain.db` on startup)
 4. Run server:
    - `node server.js`
 

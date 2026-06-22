@@ -2,7 +2,8 @@
  * Seed programs table from scripts/programs_final.json into brain.db.
  * Run: node scripts/seed-programs.js
  *
- * Uses the same SQLite setup as server.js (DatabaseSync + brain.db at project root).
+ * Also imported by server.js on startup so deploys pick up price changes
+ * without a separate manual seed step.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -12,9 +13,7 @@ const ROOT = path.join(__dirname, "..");
 const DB_PATH = path.join(ROOT, "brain.db");
 const PROGRAMS_JSON = path.join(__dirname, "programs_final.json");
 
-const db = new DatabaseSync(DB_PATH);
-
-db.exec(`
+const PROGRAMS_TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS programs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   program_slug TEXT UNIQUE NOT NULL,
@@ -39,11 +38,17 @@ CREATE TABLE IF NOT EXISTS programs (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-`);
+`;
 
-const programs = JSON.parse(fs.readFileSync(PROGRAMS_JSON, "utf-8"));
+function seedPrograms(db, options = {}) {
+  const { quiet = false, programsJsonPath = PROGRAMS_JSON } = options;
+  const log = quiet ? () => {} : console.log;
 
-const upsert = db.prepare(`
+  db.exec(PROGRAMS_TABLE_SQL);
+
+  const programs = JSON.parse(fs.readFileSync(programsJsonPath, "utf-8"));
+
+  const upsert = db.prepare(`
 INSERT OR REPLACE INTO programs (
   program_slug,
   folder_name,
@@ -71,34 +76,42 @@ INSERT OR REPLACE INTO programs (
 )
 `);
 
-let seeded = 0;
+  let seeded = 0;
 
-for (const row of programs) {
-  upsert.run(
-    row.program_slug,
-    row.folder_name ?? null,
-    row.category_slug,
-    row.sort_order ?? 0,
-    row.is_published === false ? 0 : 1,
-    row.university_name ?? null,
-    row.university_slug ?? null,
-    row.accreditation_label ?? null,
-    row.degree_badge ?? null,
-    row.program_title,
-    row.meta_line_1 ?? null,
-    row.meta_line_2 ?? null,
-    row.meta_line_3 ?? null,
-    row.price_after ?? null,
-    row.price_display ?? null,
-    row.price_after_text ?? null,
-    row.cta_primary_label ?? null,
-    row.cta_primary_url ?? null,
-    row.brochure_url ?? null
-  );
-  console.log(`✓ Seeded: ${row.program_title}`);
-  seeded += 1;
+  for (const row of programs) {
+    upsert.run(
+      row.program_slug,
+      row.folder_name ?? null,
+      row.category_slug,
+      row.sort_order ?? 0,
+      row.is_published === false ? 0 : 1,
+      row.university_name ?? null,
+      row.university_slug ?? null,
+      row.accreditation_label ?? null,
+      row.degree_badge ?? null,
+      row.program_title,
+      row.meta_line_1 ?? null,
+      row.meta_line_2 ?? null,
+      row.meta_line_3 ?? null,
+      row.price_after ?? null,
+      row.price_display ?? null,
+      row.price_after_text ?? null,
+      row.cta_primary_label ?? null,
+      row.cta_primary_url ?? null,
+      row.brochure_url ?? null
+    );
+    log(`✓ Seeded: ${row.program_title}`);
+    seeded += 1;
+  }
+
+  return seeded;
 }
 
-console.log(`Done — seeded ${seeded} programs`);
+if (require.main === module) {
+  const db = new DatabaseSync(DB_PATH);
+  const seeded = seedPrograms(db);
+  console.log(`Done — seeded ${seeded} programs`);
+  db.close();
+}
 
-db.close();
+module.exports = { seedPrograms, PROGRAMS_JSON };
