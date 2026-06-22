@@ -11,12 +11,12 @@ Neu anh/chi dang can mot lo trinh vua di lam vua hoc, em giup minh chon chuong t
 
 ### Q1. Hoc phi la bao nhieu?
 Tuy chuong trinh, hoc phi sau hoc bong pho bien nhu sau:
-- MBA GGU: khoang 200 trieu VND (hoc bong 80%)
-- MBA Edgewood: khoang 185 trieu VND (hoc bong 50%)
-- MBA LJMU: khoang 185 trieu VND (hoc bong 95%)
-- DBA GGU: khoang 375 trieu VND (hoc bong 80%)
-- DBA Edgewood: khoang 285 trieu VND (hoc bong 50%)
-- Dual MBA-DBA GGU: khoang 442 trieu VND
+- MBA GGU: khoang 215 trieu VND (hoc bong 80%)
+- MBA Edgewood: khoang 190 trieu VND (hoc bong 50%)
+- MBA LJMU: khoang 200 trieu VND (hoc bong 95%)
+- DBA GGU: khoang 405 trieu VND (hoc bong 80%)
+- DBA Edgewood: khoang 310 trieu VND (hoc bong 50%)
+- Dual MBA-DBA GGU: khoang 475 trieu VND
 
 Neu anh/chi cho em biet muc ngan sach, em de xuat ngay 1-2 chuong trinh hop ly nhat.
 
