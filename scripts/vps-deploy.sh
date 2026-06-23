@@ -26,7 +26,7 @@ npm run build
 node scripts/seed-programs.js
 
 echo "==> Remove legacy root HTML from old deployment (if any)"
-for legacy in index.html chuong-trinh.html gioi-thieu-ban-be.html login.html admin.html payment.html; do
+for legacy in index.html chuong-trinh.html gioi-thieu-ban-be.html login.html; do
   if [ -f "$APP_DIR/$legacy" ]; then
     echo "Removing legacy file: $legacy"
     rm -f "$APP_DIR/$legacy"

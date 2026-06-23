@@ -21,9 +21,7 @@ for legacy in \
   index.html \
   chuong-trinh.html \
   gioi-thieu-ban-be.html \
-  login.html \
-  admin.html \
-  payment.html; do
+  login.html; do
   if [ -f "$APP_DIR/$legacy" ]; then
     echo "Removing legacy file: $legacy"
     rm -f "$APP_DIR/$legacy"
