@@ -5,7 +5,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/var/www/landing-page}"
 PORT="${PORT:-3000}"
 
-echo "========== 1. Git (expected buildId in server.js: 2026-05-29-main) =========="
+echo "========== 1. Git (expected buildId in server.js: 2026-06-23-main) =========="
 cd "$APP_DIR"
 git log -1 --oneline
 grep -n "SERVER_BUILD_ID" server.js | head -1 || true
@@ -21,7 +21,7 @@ echo "========== 3. systemd landing-page =========="
 systemctl status landing-page --no-pager -l || true
 
 echo ""
-echo "========== 4. curl localhost (must show buildId 2026-05-29-main) =========="
+echo "========== 4. curl localhost (must show buildId 2026-06-23-main) =========="
 curl -s "http://127.0.0.1:${PORT}/api/store-info" || echo "(curl failed)"
 echo ""
 curl -s "http://127.0.0.1:${PORT}/" | head -c 400 | tr '\n' ' '
