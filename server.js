@@ -667,6 +667,64 @@ function resolveReferralMailFrom() {
   return `Trần Tuấn Anh — Đại lý Tuyển sinh Chiến lược - upGrad Việt Nam <${configured}>`;
 }
 
+async function notifyNewLead(type, data) {
+  try {
+    const apiKey = loadResendApiKey();
+    const from = resolveReferralMailFrom ? resolveReferralMailFrom() : loadResendFromEmail();
+
+    let subject = "";
+    let html = "";
+
+    if (type === "customer") {
+      subject = `🔔 Lead mới: ${data.name}`;
+      html = `
+        <div style="font-family:Arial,sans-serif;max-width:500px;">
+          <h2 style="color:#E50913;">Lead mới từ form tư vấn</h2>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">Họ tên</td><td style="padding:8px;border:1px solid #eee;">${data.name}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">SĐT</td><td style="padding:8px;border:1px solid #eee;">${data.phone}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">Email</td><td style="padding:8px;border:1px solid #eee;">${data.email || "—"}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">Chương trình</td><td style="padding:8px;border:1px solid #eee;">${data.program || "—"}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">Nguồn</td><td style="padding:8px;border:1px solid #eee;">${data.source || "—"}</td></tr>
+          </table>
+        </div>`;
+    } else if (type === "referrer") {
+      subject = `🔔 Referrer mới đăng ký: ${data.name}`;
+      html = `
+        <div style="font-family:Arial,sans-serif;max-width:500px;">
+          <h2 style="color:#E50913;">Referrer mới đăng ký</h2>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">Họ tên</td><td style="padding:8px;border:1px solid #eee;">${data.name}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">SĐT</td><td style="padding:8px;border:1px solid #eee;">${data.phone}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">Email</td><td style="padding:8px;border:1px solid #eee;">${data.email}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">Mã referral</td><td style="padding:8px;border:1px solid #eee;font-weight:700;color:#E50913;">${data.referral_code}</td></tr>
+          </table>
+        </div>`;
+    } else if (type === "referee") {
+      subject = `🔔 Referee mới: ${data.name}`;
+      html = `
+        <div style="font-family:Arial,sans-serif;max-width:500px;">
+          <h2 style="color:#E50913;">Referee mới được thêm</h2>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">Họ tên</td><td style="padding:8px;border:1px solid #eee;">${data.name}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">SĐT</td><td style="padding:8px;border:1px solid #eee;">${data.phone}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">Mã referral</td><td style="padding:8px;border:1px solid #eee;">${data.referrer_code}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;font-weight:600;">Chương trình</td><td style="padding:8px;border:1px solid #eee;">${data.enrolled_program || data.program_interest || "—"}</td></tr>
+          </table>
+        </div>`;
+    }
+
+    await sendResendEmail(apiKey, {
+      from,
+      to: ["minh.pham@upgrad.com", "doitactuyensinh.tuananh@upgrad.com"],
+      subject,
+      html,
+    });
+  } catch (err) {
+    console.error("notifyNewLead error:", err.message);
+  }
+}
+
 async function sendReferrerWelcomeEmail(referrer) {
   try {
     if (!referrer.email) return;
@@ -1062,6 +1120,12 @@ async function handleApi(req, res, url) {
           body.bank_holder || null,
           body.notes || null
         );
+      notifyNewLead("referrer", {
+        name: body.name,
+        phone: body.phone,
+        email: body.email,
+        referral_code: referralCode,
+      });
       const referrer = db
         .prepare("SELECT * FROM referrers WHERE id = ? LIMIT 1")
         .get(Number(result.lastInsertRowid));
@@ -1211,6 +1275,13 @@ async function handleApi(req, res, url) {
           String(body.financial_plan || "full").trim() || "full",
           String(body.installments || "").trim() || null
         );
+      notifyNewLead("referee", {
+        name: body.name,
+        phone: body.phone,
+        referrer_code: body.referrer_code,
+        enrolled_program: body.enrolled_program,
+        program_interest: body.program_interest,
+      });
       const referee = db
         .prepare("SELECT * FROM referees WHERE id = ? LIMIT 1")
         .get(Number(result.lastInsertRowid));
@@ -1422,6 +1493,13 @@ async function handleApi(req, res, url) {
         lead.source,
         body.registered_at || null
       );
+      notifyNewLead("customer", {
+        name: body.name,
+        phone: body.phone,
+        email: body.email,
+        program,
+        source,
+      });
       await appendToSheet("Customers", [
         new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }),
         body.name || "",
